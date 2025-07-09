@@ -43,7 +43,6 @@ def run_live_gait_analysis():
                 'left_hip': [], 'right_hip': [],
                 'left_ankle': [], 'right_ankle': []
             },
-            "step_frames": [],
             "frame_idx": 0,
             "csv_path": None,
             "video_path": None
@@ -61,7 +60,6 @@ def run_live_gait_analysis():
                     "right_xs": [], "right_ys": [],
                     "joints": {k: [] for k in st.session_state.recorded_data["joints"]},
                     "angles": {k: [] for k in st.session_state.recorded_data["angles"]},
-                    "step_frames": [],
                     "frame_idx": 0,
                     "csv_path": None,
                     "video_path": None
@@ -118,13 +116,12 @@ def run_live_gait_analysis():
                 out.write(frame)
 
                 if result.pose_landmarks:
-                    lm = result.pose_landmarks.landmark
-
                     row = [st.session_state.recorded_data["frame_idx"]]
-                    for landmark in lm:
-                        row.extend([landmark.x, landmark.y, landmark.z, landmark.visibility])
+                    for lm in result.pose_landmarks.landmark:
+                        row.extend([lm.x, lm.y, lm.z, lm.visibility])
                     csv_writer.writerow(row)
 
+                    lm = result.pose_landmarks.landmark
                     st.session_state.recorded_data["left_xs"].append(lm[mp_pose.PoseLandmark.LEFT_FOOT_INDEX].x)
                     st.session_state.recorded_data["left_ys"].append(lm[mp_pose.PoseLandmark.LEFT_FOOT_INDEX].y)
                     st.session_state.recorded_data["right_xs"].append(lm[mp_pose.PoseLandmark.RIGHT_FOOT_INDEX].x)
@@ -164,6 +161,7 @@ def run_live_gait_analysis():
 
         st.session_state.recorded_data["csv_path"] = csv_file_path
         st.session_state.recorded_data["video_path"] = video_file
+
         st.success("✅ Recording complete. Gait features will now be shown below.")
     else:
         ret, frame = cap.read()
@@ -179,43 +177,36 @@ def run_live_gait_analysis():
         rd = st.session_state.recorded_data
         fps = 30
         duration = rd["frame_idx"] / fps
-        foot_dists = np.sqrt((np.array(rd["left_xs"]) - np.array(rd["right_xs"]))**2 + (np.array(rd["left_ys"]) - np.array(rd["right_ys"]))**2)
-        peaks, _ = find_peaks(foot_dists, distance=5)
-        num_steps = len(peaks)
-        cadence = (num_steps / duration) * 60 if duration > 0 else 0
-        step_time = duration / num_steps if num_steps > 0 else 0
-        step_lengths = foot_dists[peaks]
-        mean_step_length = np.mean(step_lengths) if len(step_lengths) > 0 else 0
-        mean_step_width = np.mean(np.abs(np.array(rd["left_ys"]) - np.array(rd["right_ys"])))
-        stride_length = 2 * mean_step_length
-        gait_speed = stride_length / (2 * step_time) if step_time > 0 else 0
+        foot_dists_left = np.array(rd["left_xs"])
+        foot_dists_right = np.array(rd["right_xs"])
+        peaks_left, _ = find_peaks(foot_dists_left, distance=5)
+        peaks_right, _ = find_peaks(foot_dists_right, distance=5)
 
-        st.subheader("📊 Gait Characteristics")
-        df_metrics = pd.DataFrame({
-            "Metric": ["Cadence", "Step Time", "Step Length", "Step Width", "Stride Length", "Gait Speed", "Gait Cycle Duration"],
-            "Value": [f"{cadence:.2f} steps/min", f"{step_time:.2f} s", f"{mean_step_length:.2f} m", f"{mean_step_width:.2f} m", f"{stride_length:.2f} m", f"{gait_speed:.2f} m/s", f"{duration:.2f} s"]
+        def gait_stats(peaks, foot_dists, side="Left"):
+            num_steps = len(peaks)
+            step_time = duration / num_steps if num_steps > 0 else 0
+            step_lengths = foot_dists[peaks]
+            mean_step_length = np.mean(step_lengths) if len(step_lengths) > 0 else 0
+            stride_length = 2 * mean_step_length
+            cadence = (num_steps / duration) * 60 if duration > 0 else 0
+            gait_speed = stride_length / (2 * step_time) if step_time > 0 else 0
+            return [
+                f"{cadence:.2f} steps/min", f"{step_time:.2f} s", f"{mean_step_length:.2f} m",
+                f"{stride_length:.2f} m", f"{gait_speed:.2f} m/s"
+            ]
+
+        st.subheader("📊 Gait Characteristics (Left & Right)")
+        metrics_df = pd.DataFrame({
+            "Metric": ["Cadence", "Step Time", "Step Length", "Stride Length", "Gait Speed"],
+            "Left Leg": gait_stats(peaks_left, foot_dists_left, "Left"),
+            "Right Leg": gait_stats(peaks_right, foot_dists_right, "Right")
         })
-        st.dataframe(df_metrics, use_container_width=True)
+        st.dataframe(metrics_df, use_container_width=True)
 
-        st.subheader("🦵 Mean Joint ROM (Degrees) by Gait Phase")
-        if len(peaks) >= 2:
-            half = len(peaks) // 2
-            stance_idx = slice(peaks[0], peaks[half])
-            swing_idx = slice(peaks[half], peaks[-1])
-
-            for joint, angles in rd["angles"].items():
-                stance_rom = max(angles[stance_idx]) - min(angles[stance_idx])
-                swing_rom = max(angles[swing_idx]) - min(angles[swing_idx])
-                st.markdown(f"- **{joint.replace('_', ' ').title()} ROM:** Stance: `{stance_rom:.2f}°`, Swing: `{swing_rom:.2f}°`")
-
-        st.subheader("📈 Step Distance Signal")
-        fig, ax = plt.subplots()
-        ax.plot(foot_dists, label='Foot Distance Signal')
-        ax.plot(peaks, foot_dists[peaks], "rx", label='Detected Steps')
-        ax.set_title("Gait Step Detection")
-        ax.set_xlabel("Frame")
-        ax.set_ylabel("Normalized Distance")
-        ax.legend()
-        st.pyplot(fig)
+        st.subheader("🦵 Joint ROM (Degrees)")
+        for joint, angles in rd["angles"].items():
+            if angles:
+                rom = max(angles) - min(angles)
+                st.markdown(f"- **{joint.replace('_', ' ').title()} ROM:** `{rom:.2f}°`")
 
         st.info(f"📄 CSV: `{rd['csv_path']}`\n🎥 Video: `{rd['video_path']}`")
