@@ -19,12 +19,16 @@ def run_live_gait_analysis():
 
     zoom = st.slider("Zoom level (simulated crop)", 1.0, 2.0, 1.0, step=0.1)
 
-    if not st.session_state.recording:
-        if st.button("▶️ Start Recording"):
-            st.session_state.recording = True
-    else:
-        if st.button("⏹️ Stop Recording"):
-            st.session_state.recording = False
+    # Recording controls
+    col1, col2 = st.columns(2)
+    with col1:
+        if not st.session_state.recording:
+            if st.button("▶️ Start Recording", key="start_btn"):
+                st.session_state.recording = True
+    with col2:
+        if st.session_state.recording:
+            if st.button("⏹️ Stop Recording", key="stop_btn"):
+                st.session_state.recording = False
 
     mp_pose = mp.solutions.pose
     pose = mp_pose.Pose()
@@ -149,7 +153,6 @@ def run_live_gait_analysis():
                 rom = max_vals - min_vals
                 st.markdown(f"- **{joint.replace('_', ' ').title()} ROM:** `x: {rom[0]:.3f}`, `y: {rom[1]:.3f}`, `z: {rom[2]:.3f}`")
 
-            # Optional chart
             st.subheader("📈 Step Distance Signal")
             fig, ax = plt.subplots()
             ax.plot(foot_dists, label='Foot Distance Signal')
