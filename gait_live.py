@@ -157,4 +157,4 @@ def run_live_gait_analysis():
                 st.markdown(f"- **{joint.replace('_', ' ').title()} ROM:** `x: {rom[0]:.3f}`, `y: {rom[1]:.3f}`, `z: {rom[2]:.3f}`")
             break
 
-    cap.release()    cap.release()
+    cap.release()
