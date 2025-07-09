@@ -193,7 +193,7 @@ def run_live_gait_analysis():
         st.subheader("📊 Gait Characteristics")
         df_metrics = pd.DataFrame({
             "Metric": ["Cadence", "Step Time", "Step Length", "Step Width", "Stride Length", "Gait Speed", "Gait Cycle Duration"],
-            "Value": [f"{cadence:.2f} steps/min", f"{step_time:.2f} s", f"{mean_step_length:.2f} units", f"{mean_step_width:.2f} units", f"{stride_length:.2f} units", f"{gait_speed:.2f} units/s", f"{duration:.2f} s"]
+            "Value": [f"{cadence:.2f} steps/min", f"{step_time:.2f} s", f"{mean_step_length:.2f} m", f"{mean_step_width:.2f} m", f"{stride_length:.2f} m", f"{gait_speed:.2f} m/s", f"{duration:.2f} s"]
         })
         st.dataframe(df_metrics, use_container_width=True)
 
