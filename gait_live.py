@@ -12,10 +12,18 @@ def run_live_gait_analysis():
     st.title("🎥 Live Gait Camera Preview")
     st.markdown("Adjust your position and framing. Then press **Start Recording** when ready.")
 
+    if "recording" not in st.session_state:
+        st.session_state.recording = False
+
     # UI controls
     zoom = st.slider("Zoom level (simulated crop)", 1.0, 2.0, 1.0, step=0.1)
-    start_recording = st.button("▶️ Start Recording")
-    stop_recording = st.button("⏹️ Stop Recording")
+
+    if not st.session_state.recording:
+        if st.button("▶️ Start Recording"):
+            st.session_state.recording = True
+    else:
+        if st.button("⏹️ Stop Recording"):
+            st.session_state.recording = False
 
     # MediaPipe setup
     mp_pose = mp.solutions.pose
@@ -32,7 +40,6 @@ def run_live_gait_analysis():
 
     # Initialize placeholders
     frame_display = st.empty()
-    recording = False
     writer = None
     csv_writer = None
     csv_file = None
@@ -48,6 +55,8 @@ def run_live_gait_analysis():
         'LEFT_HIP': [], 'RIGHT_HIP': [],
         'LEFT_ANKLE': [], 'RIGHT_ANKLE': []
     }
+
+    recording = False
 
     # Main loop
     while cap.isOpened():
@@ -72,8 +81,8 @@ def run_live_gait_analysis():
         # Display live frame
         frame_display.image(frame, channels="BGR", use_column_width=True)
 
-        # Start recording logic
-        if start_recording and not recording:
+        # Start recording
+        if st.session_state.recording and not recording:
             recording = True
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             os.makedirs("outputs", exist_ok=True)
@@ -110,8 +119,8 @@ def run_live_gait_analysis():
 
             frame_idx += 1
 
-        # Stop recording logic
-        if recording and stop_recording:
+        # Stop recording
+        if not st.session_state.recording and recording:
             recording = False
             out.release()
             csv_file.close()
@@ -148,4 +157,4 @@ def run_live_gait_analysis():
                 st.markdown(f"- **{joint.replace('_', ' ').title()} ROM:** `x: {rom[0]:.3f}`, `y: {rom[1]:.3f}`, `z: {rom[2]:.3f}`")
             break
 
-    cap.release()
+    cap.release()    cap.release()
