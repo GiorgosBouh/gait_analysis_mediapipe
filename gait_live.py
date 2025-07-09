@@ -4,6 +4,8 @@ import os
 import csv
 from datetime import datetime
 import streamlit as st
+import numpy as np
+from scipy.signal import find_peaks
 
 
 def run_live_gait_analysis():
@@ -36,6 +38,16 @@ def run_live_gait_analysis():
     csv_file = None
     out = None
     frame_idx = 0
+    fps = 30
+
+    left_xs, right_xs = [], []
+    left_ys, right_ys = [], []
+
+    joints = {
+        'LEFT_KNEE': [], 'RIGHT_KNEE': [],
+        'LEFT_HIP': [], 'RIGHT_HIP': [],
+        'LEFT_ANKLE': [], 'RIGHT_ANKLE': []
+    }
 
     # Main loop
     while cap.isOpened():
@@ -80,8 +92,22 @@ def run_live_gait_analysis():
         if recording:
             out.write(frame)
             if result.pose_landmarks:
-                row = [frame_idx] + [getattr(lm, attr) for lm in result.pose_landmarks.landmark for attr in ['x', 'y', 'z', 'visibility']]
+                row = [frame_idx]
+                for lm in result.pose_landmarks.landmark:
+                    row.extend([lm.x, lm.y, lm.z, lm.visibility])
                 csv_writer.writerow(row)
+
+                # Save foot coords for gait analysis
+                left_xs.append(result.pose_landmarks.landmark[mp_pose.PoseLandmark.LEFT_FOOT_INDEX].x)
+                left_ys.append(result.pose_landmarks.landmark[mp_pose.PoseLandmark.LEFT_FOOT_INDEX].y)
+                right_xs.append(result.pose_landmarks.landmark[mp_pose.PoseLandmark.RIGHT_FOOT_INDEX].x)
+                right_ys.append(result.pose_landmarks.landmark[mp_pose.PoseLandmark.RIGHT_FOOT_INDEX].y)
+
+                # Save joint 3D positions for ROM calculation
+                for joint in joints:
+                    lm = result.pose_landmarks.landmark[mp_pose.PoseLandmark[joint]]
+                    joints[joint].append([lm.x, lm.y, lm.z])
+
             frame_idx += 1
 
         # Stop recording logic
@@ -89,9 +115,37 @@ def run_live_gait_analysis():
             recording = False
             out.release()
             csv_file.close()
+
             st.success("✅ Recording complete.")
             st.write(f"📄 CSV saved to: `{csv_file_path}`")
             st.write(f"🎥 Video saved to: `{video_file}`")
+
+            # Gait characteristics calculation
+            duration = frame_idx / fps
+            foot_dists = np.sqrt((np.array(left_xs) - np.array(right_xs))**2 + (np.array(left_ys) - np.array(right_ys))**2)
+            peaks, _ = find_peaks(foot_dists, distance=5)
+            num_steps = len(peaks)
+            cadence = (num_steps / duration) * 60 if duration > 0 else 0
+            step_time = duration / num_steps if num_steps > 0 else 0
+            step_lengths = foot_dists[peaks]
+            mean_step_length = np.mean(step_lengths) if len(step_lengths) > 0 else 0
+            mean_step_width = np.mean(np.abs(np.array(left_ys) - np.array(right_ys)))
+
+            st.subheader("📊 Gait Characteristics")
+            st.markdown(f"- **Cadence:** `{cadence:.2f}` steps/min")
+            st.markdown(f"- **Step Time:** `{step_time:.2f}` sec")
+            st.markdown(f"- **Step Length:** `{mean_step_length:.2f}` (normalized units)")
+            st.markdown(f"- **Step Width:** `{mean_step_width:.2f}` (normalized units)")
+            st.markdown(f"- **Gait Cycle Duration:** `{duration:.2f}` sec")
+
+            # ROM per joint (3D min-max range)
+            st.subheader("🦵 Joint Range of Motion (3D)")
+            for joint, coords in joints.items():
+                arr = np.array(coords)
+                min_vals = np.min(arr, axis=0)
+                max_vals = np.max(arr, axis=0)
+                rom = max_vals - min_vals
+                st.markdown(f"- **{joint.replace('_', ' ').title()} ROM:** `x: {rom[0]:.3f}`, `y: {rom[1]:.3f}`, `z: {rom[2]:.3f}`")
             break
 
     cap.release()
