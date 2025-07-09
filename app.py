@@ -20,7 +20,7 @@ if mode == "Live Camera":
     if st.session_state.mode_selected != "live":
         if st.button("Start Live Capture"):
             st.session_state.mode_selected = "live"
-            st.experimental_rerun()
+            st.rerun()
 
 elif mode == "Video from GitHub folder":
     video_files = [f for f in os.listdir("videos") if f.endswith(".mp4")]
@@ -30,7 +30,7 @@ elif mode == "Video from GitHub folder":
         selected_video = st.selectbox("Select a video to analyze:", video_files)
         if st.button("Run analysis on selected video"):
             st.session_state.mode_selected = f"video::{selected_video}"
-            st.experimental_rerun()
+            st.rerun()
 
 # Launch appropriate mode
 if st.session_state.mode_selected == "live":
