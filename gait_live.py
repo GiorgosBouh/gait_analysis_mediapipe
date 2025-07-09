@@ -158,8 +158,12 @@ def run_live_gait_analysis():
         cap.release()
         out.release()
         csv_file.close()
-        st.session_state.recorded_data["csv_path"] = csv_file_path
-        st.session_state.recorded_data["video_path"] = video_file
+
+        # 🛠️ Save file paths to session state
+        recorded_data = st.session_state.recorded_data
+        recorded_data["csv_path"] = csv_file_path
+        recorded_data["video_path"] = video_file
+        st.session_state.recorded_data = recorded_data
         st.success("✅ Recording complete. Gait features will now be shown below.")
     else:
         ret, frame = cap.read()
