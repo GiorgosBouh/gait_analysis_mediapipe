@@ -43,6 +43,7 @@ def run_live_gait_analysis():
                 'left_hip': [], 'right_hip': [],
                 'left_ankle': [], 'right_ankle': []
             },
+            "step_frames": [],
             "frame_idx": 0,
             "csv_path": None,
             "video_path": None
@@ -60,6 +61,7 @@ def run_live_gait_analysis():
                     "right_xs": [], "right_ys": [],
                     "joints": {k: [] for k in st.session_state.recorded_data["joints"]},
                     "angles": {k: [] for k in st.session_state.recorded_data["angles"]},
+                    "step_frames": [],
                     "frame_idx": 0,
                     "csv_path": None,
                     "video_path": None
@@ -116,12 +118,13 @@ def run_live_gait_analysis():
                 out.write(frame)
 
                 if result.pose_landmarks:
+                    lm = result.pose_landmarks.landmark
+
                     row = [st.session_state.recorded_data["frame_idx"]]
-                    for lm in result.pose_landmarks.landmark:
-                        row.extend([lm.x, lm.y, lm.z, lm.visibility])
+                    for landmark in lm:
+                        row.extend([landmark.x, landmark.y, landmark.z, landmark.visibility])
                     csv_writer.writerow(row)
 
-                    lm = result.pose_landmarks.landmark
                     st.session_state.recorded_data["left_xs"].append(lm[mp_pose.PoseLandmark.LEFT_FOOT_INDEX].x)
                     st.session_state.recorded_data["left_ys"].append(lm[mp_pose.PoseLandmark.LEFT_FOOT_INDEX].y)
                     st.session_state.recorded_data["right_xs"].append(lm[mp_pose.PoseLandmark.RIGHT_FOOT_INDEX].x)
@@ -159,10 +162,6 @@ def run_live_gait_analysis():
         out.release()
         csv_file.close()
 
-        # ✅ Update paths explicitly and safely
-        if "recorded_data" not in st.session_state:
-            st.session_state.recorded_data = {}
-
         st.session_state.recorded_data["csv_path"] = csv_file_path
         st.session_state.recorded_data["video_path"] = video_file
         st.success("✅ Recording complete. Gait features will now be shown below.")
@@ -198,11 +197,16 @@ def run_live_gait_analysis():
         })
         st.dataframe(df_metrics, use_container_width=True)
 
-        st.subheader("🦵 Joint ROM (Degrees)")
-        for joint, angles in rd["angles"].items():
-            if angles:
-                rom = max(angles) - min(angles)
-                st.markdown(f"- **{joint.replace('_', ' ').title()} ROM:** `{rom:.2f}°`")
+        st.subheader("🦵 Mean Joint ROM (Degrees) by Gait Phase")
+        if len(peaks) >= 2:
+            half = len(peaks) // 2
+            stance_idx = slice(peaks[0], peaks[half])
+            swing_idx = slice(peaks[half], peaks[-1])
+
+            for joint, angles in rd["angles"].items():
+                stance_rom = max(angles[stance_idx]) - min(angles[stance_idx])
+                swing_rom = max(angles[swing_idx]) - min(angles[swing_idx])
+                st.markdown(f"- **{joint.replace('_', ' ').title()} ROM:** Stance: `{stance_rom:.2f}°`, Swing: `{swing_rom:.2f}°`")
 
         st.subheader("📈 Step Distance Signal")
         fig, ax = plt.subplots()
