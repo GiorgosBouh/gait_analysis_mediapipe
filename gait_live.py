@@ -16,6 +16,8 @@ def run_live_gait_analysis():
 
     if "recording" not in st.session_state:
         st.session_state.recording = False
+    if "recording_started" not in st.session_state:
+        st.session_state.recording_started = False
 
     zoom = st.slider("Zoom level (simulated crop)", 1.0, 2.0, 1.0, step=0.1)
 
@@ -25,6 +27,7 @@ def run_live_gait_analysis():
         if not st.session_state.recording:
             if st.button("▶️ Start Recording", key="start_btn"):
                 st.session_state.recording = True
+                st.session_state.recording_started = True
     with col2:
         if st.session_state.recording:
             if st.button("⏹️ Stop Recording", key="stop_btn"):
@@ -57,8 +60,6 @@ def run_live_gait_analysis():
         'LEFT_ANKLE': [], 'RIGHT_ANKLE': []
     }
 
-    recording = False
-
     while cap.isOpened():
         ret, frame = cap.read()
         if not ret:
@@ -78,22 +79,21 @@ def run_live_gait_analysis():
 
         frame_display.image(frame, channels="BGR", use_container_width=True)
 
-        if st.session_state.recording and not recording:
-            recording = True
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            os.makedirs("outputs", exist_ok=True)
-            video_file = f"outputs/gait_live_{timestamp}.mp4"
-            csv_file_path = f"outputs/gait_live_{timestamp}.csv"
-            out = cv2.VideoWriter(video_file, cv2.VideoWriter_fourcc(*'mp4v'), 30, (width, height))
-            csv_file = open(csv_file_path, 'w', newline='')
-            csv_writer = csv.writer(csv_file)
-            landmark_names = [l.name for l in mp_pose.PoseLandmark]
-            header = ['frame'] + [f"{n}_{a}" for n in landmark_names for a in ['x', 'y', 'z', 'visibility']]
-            csv_writer.writerow(header)
-            st.success("🔴 Recording started...")
-            frame_idx = 0
+        if st.session_state.recording_started and st.session_state.recording:
+            if out is None:
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                os.makedirs("outputs", exist_ok=True)
+                video_file = f"outputs/gait_live_{timestamp}.mp4"
+                csv_file_path = f"outputs/gait_live_{timestamp}.csv"
+                out = cv2.VideoWriter(video_file, cv2.VideoWriter_fourcc(*'mp4v'), 30, (width, height))
+                csv_file = open(csv_file_path, 'w', newline='')
+                csv_writer = csv.writer(csv_file)
+                landmark_names = [l.name for l in mp_pose.PoseLandmark]
+                header = ['frame'] + [f"{n}_{a}" for n in landmark_names for a in ['x', 'y', 'z', 'visibility']]
+                csv_writer.writerow(header)
+                frame_idx = 0
+                st.success("🔴 Recording started...")
 
-        if recording:
             out.write(frame)
             if result.pose_landmarks:
                 row = [frame_idx]
@@ -110,58 +110,58 @@ def run_live_gait_analysis():
                     lm = result.pose_landmarks.landmark[mp_pose.PoseLandmark[joint]]
                     joints[joint].append([lm.x, lm.y, lm.z])
 
-            frame_idx += 1
+                frame_idx += 1
 
-        if not st.session_state.recording and recording:
-            recording = False
-            out.release()
-            csv_file.close()
+        elif not st.session_state.recording and st.session_state.recording_started:
+            st.session_state.recording_started = False
+            if out:
+                out.release()
+                csv_file.close()
+                st.success("✅ Recording complete.")
+                st.write(f"📄 CSV saved to: `{csv_file_path}`")
+                st.write(f"🎥 Video saved to: `{video_file}`")
 
-            st.success("✅ Recording complete.")
-            st.write(f"📄 CSV saved to: `{csv_file_path}`")
-            st.write(f"🎥 Video saved to: `{video_file}`")
+                duration = frame_idx / fps
+                foot_dists = np.sqrt((np.array(left_xs) - np.array(right_xs))**2 + (np.array(left_ys) - np.array(right_ys))**2)
+                peaks, _ = find_peaks(foot_dists, distance=5)
+                num_steps = len(peaks)
+                cadence = (num_steps / duration) * 60 if duration > 0 else 0
+                step_time = duration / num_steps if num_steps > 0 else 0
+                step_lengths = foot_dists[peaks]
+                mean_step_length = np.mean(step_lengths) if len(step_lengths) > 0 else 0
+                mean_step_width = np.mean(np.abs(np.array(left_ys) - np.array(right_ys)))
+                stride_length = 2 * mean_step_length
+                gait_speed = stride_length / (2 * step_time) if step_time > 0 else 0
 
-            duration = frame_idx / fps
-            foot_dists = np.sqrt((np.array(left_xs) - np.array(right_xs))**2 + (np.array(left_ys) - np.array(right_ys))**2)
-            peaks, _ = find_peaks(foot_dists, distance=5)
-            num_steps = len(peaks)
-            cadence = (num_steps / duration) * 60 if duration > 0 else 0
-            step_time = duration / num_steps if num_steps > 0 else 0
-            step_lengths = foot_dists[peaks]
-            mean_step_length = np.mean(step_lengths) if len(step_lengths) > 0 else 0
-            mean_step_width = np.mean(np.abs(np.array(left_ys) - np.array(right_ys)))
-            stride_length = 2 * mean_step_length
-            gait_speed = stride_length / (2 * step_time) if step_time > 0 else 0
+                st.subheader("📊 Gait Characteristics")
+                data = {
+                    "Cadence (steps/min)": f"{cadence:.2f}",
+                    "Step Time (s)": f"{step_time:.2f}",
+                    "Step Length": f"{mean_step_length:.2f}",
+                    "Step Width": f"{mean_step_width:.2f}",
+                    "Stride Length": f"{stride_length:.2f}",
+                    "Gait Speed (unit/s)": f"{gait_speed:.2f}",
+                    "Gait Cycle Duration (s)": f"{duration:.2f}"
+                }
+                st.dataframe(pd.DataFrame.from_dict(data, orient='index', columns=['Value']))
 
-            st.subheader("📊 Gait Characteristics")
-            data = {
-                "Cadence (steps/min)": f"{cadence:.2f}",
-                "Step Time (s)": f"{step_time:.2f}",
-                "Step Length": f"{mean_step_length:.2f}",
-                "Step Width": f"{mean_step_width:.2f}",
-                "Stride Length": f"{stride_length:.2f}",
-                "Gait Speed (unit/s)": f"{gait_speed:.2f}",
-                "Gait Cycle Duration (s)": f"{duration:.2f}"
-            }
-            st.dataframe(pd.DataFrame.from_dict(data, orient='index', columns=['Value']))
+                st.subheader("🦵 Joint Range of Motion (3D)")
+                for joint, coords in joints.items():
+                    arr = np.array(coords)
+                    min_vals = np.min(arr, axis=0)
+                    max_vals = np.max(arr, axis=0)
+                    rom = max_vals - min_vals
+                    st.markdown(f"- **{joint.replace('_', ' ').title()} ROM:** `x: {rom[0]:.3f}`, `y: {rom[1]:.3f}`, `z: {rom[2]:.3f}`")
 
-            st.subheader("🦵 Joint Range of Motion (3D)")
-            for joint, coords in joints.items():
-                arr = np.array(coords)
-                min_vals = np.min(arr, axis=0)
-                max_vals = np.max(arr, axis=0)
-                rom = max_vals - min_vals
-                st.markdown(f"- **{joint.replace('_', ' ').title()} ROM:** `x: {rom[0]:.3f}`, `y: {rom[1]:.3f}`, `z: {rom[2]:.3f}`")
-
-            st.subheader("📈 Step Distance Signal")
-            fig, ax = plt.subplots()
-            ax.plot(foot_dists, label='Foot Distance Signal')
-            ax.plot(peaks, foot_dists[peaks], "rx", label='Detected Steps')
-            ax.set_title("Gait Step Detection")
-            ax.set_xlabel("Frame")
-            ax.set_ylabel("Normalized Distance")
-            ax.legend()
-            st.pyplot(fig)
+                st.subheader("📈 Step Distance Signal")
+                fig, ax = plt.subplots()
+                ax.plot(foot_dists, label='Foot Distance Signal')
+                ax.plot(peaks, foot_dists[peaks], "rx", label='Detected Steps')
+                ax.set_title("Gait Step Detection")
+                ax.set_xlabel("Frame")
+                ax.set_ylabel("Normalized Distance")
+                ax.legend()
+                st.pyplot(fig)
             break
 
     cap.release()
