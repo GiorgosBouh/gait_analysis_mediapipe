@@ -163,10 +163,8 @@ def run_live_gait_analysis():
         if "recorded_data" not in st.session_state:
             st.session_state.recorded_data = {}
 
-        st.session_state.recorded_data.update({
-            "csv_path": csv_file_path,
-            "video_path": video_file
-        })
+        st.session_state.recorded_data["csv_path"] = csv_file_path
+        st.session_state.recorded_data["video_path"] = video_file
         st.success("✅ Recording complete. Gait features will now be shown below.")
     else:
         ret, frame = cap.read()
