@@ -1,9 +1,11 @@
-def run_live_gait_analysis():
-    import cv2
-    import mediapipe as mp
-    import csv, os
-    from datetime import datetime
+import cv2
+import mediapipe as mp
+import os
+import csv
+from datetime import datetime
+import streamlit as st
 
+def run_live_gait_analysis():
     os.makedirs("outputs", exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     csv_file = f"outputs/gait_live_{timestamp}.csv"
@@ -24,7 +26,10 @@ def run_live_gait_analysis():
         writer.writerow(header)
 
         frame_idx = 0
-        while True:
+        frame_display = st.empty()
+        stop = st.button("Stop Recording")
+
+        while cap.isOpened() and not stop:
             ret, frame = cap.read()
             if not ret:
                 break
@@ -35,11 +40,11 @@ def run_live_gait_analysis():
                 row = [frame_idx] + [getattr(lm, attr) for lm in result.pose_landmarks.landmark for attr in ['x', 'y', 'z', 'visibility']]
                 writer.writerow(row)
             out.write(frame)
-            cv2.imshow('Live Gait', frame)
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
+            frame_display.image(frame, channels="BGR", caption=f"Frame {frame_idx}", use_column_width=True)
             frame_idx += 1
 
     cap.release()
     out.release()
-    cv2.destroyAllWindows()
+    st.success("✅ Recording complete.")
+    st.write(f"📄 CSV saved to: `{csv_file}`")
+    st.write(f"🎥 Video saved to: `{video_file}`")
