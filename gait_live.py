@@ -58,7 +58,7 @@ def run_live_gait_analysis():
             mp_drawing.draw_landmarks(frame, result.pose_landmarks, mp_pose.POSE_CONNECTIONS)
 
         # Display live frame
-        frame_display.image(frame, channels="BGR", use_column_width=True)
+        frame_display.image(frame, channels="BGR", use_container_width=True)
 
         # Start recording logic
         if start_recording and not recording:
