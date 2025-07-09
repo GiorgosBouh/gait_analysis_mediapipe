@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.signal import find_peaks
+from math import acos, degrees
 
 
 def calculate_angle(a, b, c):
@@ -18,8 +19,8 @@ def calculate_angle(a, b, c):
     ba = a - b
     bc = c - b
     cosine_angle = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc))
-    angle = np.arccos(np.clip(cosine_angle, -1.0, 1.0))
-    return np.degrees(angle)
+    angle = degrees(acos(np.clip(cosine_angle, -1.0, 1.0)))
+    return angle
 
 
 def run_live_gait_analysis():
@@ -38,9 +39,9 @@ def run_live_gait_analysis():
                 'LEFT_ANKLE': [], 'RIGHT_ANKLE': []
             },
             "angles": {
-                'LEFT_HIP': [], 'RIGHT_HIP': [],
-                'LEFT_KNEE': [], 'RIGHT_KNEE': [],
-                'LEFT_ANKLE': [], 'RIGHT_ANKLE': []
+                'left_knee': [], 'right_knee': [],
+                'left_hip': [], 'right_hip': [],
+                'left_ankle': [], 'right_ankle': []
             },
             "frame_idx": 0,
             "csv_path": None,
@@ -133,19 +134,24 @@ def run_live_gait_analysis():
                             lm[mp_pose.PoseLandmark[joint]].z
                         ])
 
-                    # Joint angles
-                    st.session_state.recorded_data["angles"]['LEFT_HIP'].append(
-                        calculate_angle(lm[mp_pose.PoseLandmark.LEFT_SHOULDER], lm[mp_pose.PoseLandmark.LEFT_HIP], lm[mp_pose.PoseLandmark.LEFT_KNEE]))
-                    st.session_state.recorded_data["angles"]['RIGHT_HIP'].append(
-                        calculate_angle(lm[mp_pose.PoseLandmark.RIGHT_SHOULDER], lm[mp_pose.PoseLandmark.RIGHT_HIP], lm[mp_pose.PoseLandmark.RIGHT_KNEE]))
-                    st.session_state.recorded_data["angles"]['LEFT_KNEE'].append(
-                        calculate_angle(lm[mp_pose.PoseLandmark.LEFT_HIP], lm[mp_pose.PoseLandmark.LEFT_KNEE], lm[mp_pose.PoseLandmark.LEFT_ANKLE]))
-                    st.session_state.recorded_data["angles"]['RIGHT_KNEE'].append(
-                        calculate_angle(lm[mp_pose.PoseLandmark.RIGHT_HIP], lm[mp_pose.PoseLandmark.RIGHT_KNEE], lm[mp_pose.PoseLandmark.RIGHT_ANKLE]))
-                    st.session_state.recorded_data["angles"]['LEFT_ANKLE'].append(
-                        calculate_angle(lm[mp_pose.PoseLandmark.LEFT_KNEE], lm[mp_pose.PoseLandmark.LEFT_ANKLE], lm[mp_pose.PoseLandmark.LEFT_HEEL]))
-                    st.session_state.recorded_data["angles"]['RIGHT_ANKLE'].append(
-                        calculate_angle(lm[mp_pose.PoseLandmark.RIGHT_KNEE], lm[mp_pose.PoseLandmark.RIGHT_ANKLE], lm[mp_pose.PoseLandmark.RIGHT_HEEL]))
+                    st.session_state.recorded_data["angles"]["left_knee"].append(
+                        calculate_angle(lm[mp_pose.PoseLandmark.LEFT_HIP], lm[mp_pose.PoseLandmark.LEFT_KNEE], lm[mp_pose.PoseLandmark.LEFT_ANKLE])
+                    )
+                    st.session_state.recorded_data["angles"]["right_knee"].append(
+                        calculate_angle(lm[mp_pose.PoseLandmark.RIGHT_HIP], lm[mp_pose.PoseLandmark.RIGHT_KNEE], lm[mp_pose.PoseLandmark.RIGHT_ANKLE])
+                    )
+                    st.session_state.recorded_data["angles"]["left_hip"].append(
+                        calculate_angle(lm[mp_pose.PoseLandmark.LEFT_SHOULDER], lm[mp_pose.PoseLandmark.LEFT_HIP], lm[mp_pose.PoseLandmark.LEFT_KNEE])
+                    )
+                    st.session_state.recorded_data["angles"]["right_hip"].append(
+                        calculate_angle(lm[mp_pose.PoseLandmark.RIGHT_SHOULDER], lm[mp_pose.PoseLandmark.RIGHT_HIP], lm[mp_pose.PoseLandmark.RIGHT_KNEE])
+                    )
+                    st.session_state.recorded_data["angles"]["left_ankle"].append(
+                        calculate_angle(lm[mp_pose.PoseLandmark.LEFT_KNEE], lm[mp_pose.PoseLandmark.LEFT_ANKLE], lm[mp_pose.PoseLandmark.LEFT_HEEL])
+                    )
+                    st.session_state.recorded_data["angles"]["right_ankle"].append(
+                        calculate_angle(lm[mp_pose.PoseLandmark.RIGHT_KNEE], lm[mp_pose.PoseLandmark.RIGHT_ANKLE], lm[mp_pose.PoseLandmark.RIGHT_HEEL])
+                    )
 
                     st.session_state.recorded_data["frame_idx"] += 1
 
@@ -182,16 +188,16 @@ def run_live_gait_analysis():
 
         st.subheader("📊 Gait Characteristics")
         df_metrics = pd.DataFrame({
-            "Metric": ["Cadence (steps/min)", "Step Time (s)", "Step Length", "Step Width", "Stride Length", "Gait Speed", "Gait Cycle Duration (s)"],
-            "Value": [f"{cadence:.2f}", f"{step_time:.2f}", f"{mean_step_length:.2f}", f"{mean_step_width:.2f}", f"{stride_length:.2f}", f"{gait_speed:.2f}", f"{duration:.2f}"]
+            "Metric": ["Cadence", "Step Time", "Step Length", "Step Width", "Stride Length", "Gait Speed", "Gait Cycle Duration"],
+            "Value": [f"{cadence:.2f} steps/min", f"{step_time:.2f} s", f"{mean_step_length:.2f} units", f"{mean_step_width:.2f} units", f"{stride_length:.2f} units", f"{gait_speed:.2f} units/s", f"{duration:.2f} s"]
         })
         st.dataframe(df_metrics, use_container_width=True)
 
-        st.subheader("🦵 Mean Joint Angles (degrees)")
-        for joint, values in rd["angles"].items():
-            if values:
-                mean_angle = np.mean(values)
-                st.markdown(f"- **{joint.replace('_', ' ').title()} Mean Angle:** `{mean_angle:.2f}°`")
+        st.subheader("🦵 Joint ROM (Degrees)")
+        for joint, angles in rd["angles"].items():
+            if angles:
+                rom = max(angles) - min(angles)
+                st.markdown(f"- **{joint.replace('_', ' ').title()} ROM:** `{rom:.2f}°`")
 
         st.subheader("📈 Step Distance Signal")
         fig, ax = plt.subplots()
