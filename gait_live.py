@@ -165,8 +165,7 @@ def run_live_gait_analysis():
                 min_vals = np.min(arr, axis=0)
                 max_vals = np.max(arr, axis=0)
                 rom = max_vals - min_vals
-                st.markdown(f"- **{joint.replace('_', ' ').title()} ROM:** `x: {rom[0]:.3f}`, `y: {rom[1]:.3f}`, `z: {rom[2]:.3f}`)
-
+                st.markdown(f"- **{joint.replace('_', ' ').title()} ROM:** `x: {rom[0]:.3f}`, `y: {rom[1]:.3f}`, `z: {rom[2]:.3f}`)")
         st.subheader("📈 Step Distance Signal")
         fig, ax = plt.subplots()
         ax.plot(foot_dists, label='Foot Distance Signal')
