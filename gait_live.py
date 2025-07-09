@@ -10,7 +10,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.signal import find_peaks
 
-
 def run_live_gait_analysis():
     st.title("🎥 Live Gait Camera Preview")
     st.markdown("Adjust your position and framing. Then press **Start Recording** when ready.")
@@ -32,39 +31,43 @@ def run_live_gait_analysis():
         }
 
     zoom = st.slider("Zoom level (simulated crop)", 1.0, 2.0, 1.0, step=0.1)
-
     col1, col2 = st.columns(2)
+
+    if "action" not in st.session_state:
+        st.session_state.action = None
+
     with col1:
-        if not st.session_state.recording:
-            if st.button("▶️ Start Recording"):
-                st.session_state.recording = True
-                st.session_state.recorded_data = {
-                    "left_xs": [], "left_ys": [],
-                    "right_xs": [], "right_ys": [],
-                    "joints": {k: [] for k in st.session_state.recorded_data["joints"]},
-                    "frame_idx": 0,
-                    "csv_path": None,
-                    "video_path": None
-                }
+        if st.button("▶️ Start Recording"):
+            st.session_state.recording = True
+            st.session_state.action = "start"
+            st.session_state.recorded_data = {
+                "left_xs": [], "left_ys": [],
+                "right_xs": [], "right_ys": [],
+                "joints": {k: [] for k in st.session_state.recorded_data["joints"]},
+                "frame_idx": 0,
+                "csv_path": None,
+                "video_path": None
+            }
     with col2:
-        if st.session_state.recording:
-            if st.button("⏹️ Stop Recording"):
-                st.session_state.recording = False
+        if st.button("⏹️ Stop Recording"):
+            st.session_state.recording = False
+            st.session_state.action = "stop"
 
-    # Only open camera if recording
-    if st.session_state.recording:
-        cap = cv2.VideoCapture(0)
-        if not cap.isOpened():
-            st.error("❌ Cannot open webcam. Make sure it is connected and accessible.")
-            return
+    # Camera & model setup
+    cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        st.error("❌ Cannot open webcam. Make sure it is connected and accessible.")
+        return
 
-        width, height = int(cap.get(3)), int(cap.get(4))
-        frame_display = st.empty()
+    width, height = int(cap.get(3)), int(cap.get(4))
+    frame_display = st.empty()
 
-        mp_pose = mp.solutions.pose
-        pose = mp_pose.Pose()
-        mp_drawing = mp.solutions.drawing_utils
+    mp_pose = mp.solutions.pose
+    pose = mp_pose.Pose()
+    mp_drawing = mp.solutions.drawing_utils
 
+    # Output setup only once
+    if st.session_state.recording and st.session_state.action == "start":
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         os.makedirs("outputs", exist_ok=True)
         video_file = f"outputs/gait_live_{timestamp}.mp4"
@@ -77,53 +80,63 @@ def run_live_gait_analysis():
         header = ['frame'] + [f"{n}_{a}" for n in landmark_names for a in ['x', 'y', 'z', 'visibility']]
         csv_writer.writerow(header)
 
-        with st.spinner("Recording... Press Stop to finish."):
-            while st.session_state.recording:
-                ret, frame = cap.read()
-                if not ret:
-                    break
+        st.session_state.output_files = {
+            "video": out,
+            "csv": csv_file,
+            "writer": csv_writer,
+            "video_path": video_file,
+            "csv_path": csv_file_path
+        }
 
-                if zoom > 1.0:
-                    center_x, center_y = width // 2, height // 2
-                    new_w, new_h = int(width / zoom), int(height / zoom)
-                    left, top = center_x - new_w // 2, center_y - new_h // 2
-                    frame = frame[top:top + new_h, left:left + new_w]
-                    frame = cv2.resize(frame, (width, height))
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
 
-                rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                result = pose.process(rgb)
-                if result.pose_landmarks:
-                    mp_drawing.draw_landmarks(frame, result.pose_landmarks, mp_pose.POSE_CONNECTIONS)
+        if zoom > 1.0:
+            center_x, center_y = width // 2, height // 2
+            new_w, new_h = int(width / zoom), int(height / zoom)
+            left, top = center_x - new_w // 2, center_y - new_h // 2
+            frame = frame[top:top + new_h, left:left + new_w]
+            frame = cv2.resize(frame, (width, height))
 
-                frame_display.image(frame, channels="BGR", use_container_width=True)
-                out.write(frame)
+        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        result = pose.process(rgb)
+        if result.pose_landmarks:
+            mp_drawing.draw_landmarks(frame, result.pose_landmarks, mp_pose.POSE_CONNECTIONS)
 
-                if result.pose_landmarks:
-                    row = [st.session_state.recorded_data["frame_idx"]]
-                    for lm in result.pose_landmarks.landmark:
-                        row.extend([lm.x, lm.y, lm.z, lm.visibility])
-                    csv_writer.writerow(row)
+        frame_display.image(frame, channels="BGR", use_container_width=True)
 
-                    st.session_state.recorded_data["left_xs"].append(result.pose_landmarks.landmark[mp_pose.PoseLandmark.LEFT_FOOT_INDEX].x)
-                    st.session_state.recorded_data["left_ys"].append(result.pose_landmarks.landmark[mp_pose.PoseLandmark.LEFT_FOOT_INDEX].y)
-                    st.session_state.recorded_data["right_xs"].append(result.pose_landmarks.landmark[mp_pose.PoseLandmark.RIGHT_FOOT_INDEX].x)
-                    st.session_state.recorded_data["right_ys"].append(result.pose_landmarks.landmark[mp_pose.PoseLandmark.RIGHT_FOOT_INDEX].y)
+        # If recording, save data
+        if st.session_state.recording:
+            st.session_state.output_files["video"].write(frame)
+            if result.pose_landmarks:
+                row = [st.session_state.recorded_data["frame_idx"]]
+                for lm in result.pose_landmarks.landmark:
+                    row.extend([lm.x, lm.y, lm.z, lm.visibility])
+                st.session_state.output_files["writer"].writerow(row)
 
-                    for joint in st.session_state.recorded_data["joints"]:
-                        lm = result.pose_landmarks.landmark[mp_pose.PoseLandmark[joint]]
-                        st.session_state.recorded_data["joints"][joint].append([lm.x, lm.y, lm.z])
+                st.session_state.recorded_data["left_xs"].append(result.pose_landmarks.landmark[mp_pose.PoseLandmark.LEFT_FOOT_INDEX].x)
+                st.session_state.recorded_data["left_ys"].append(result.pose_landmarks.landmark[mp_pose.PoseLandmark.LEFT_FOOT_INDEX].y)
+                st.session_state.recorded_data["right_xs"].append(result.pose_landmarks.landmark[mp_pose.PoseLandmark.RIGHT_FOOT_INDEX].x)
+                st.session_state.recorded_data["right_ys"].append(result.pose_landmarks.landmark[mp_pose.PoseLandmark.RIGHT_FOOT_INDEX].y)
 
-                    st.session_state.recorded_data["frame_idx"] += 1
+                for joint in st.session_state.recorded_data["joints"]:
+                    lm = result.pose_landmarks.landmark[mp_pose.PoseLandmark[joint]]
+                    st.session_state.recorded_data["joints"][joint].append([lm.x, lm.y, lm.z])
 
-        cap.release()
-        out.release()
-        csv_file.close()
-        st.session_state.recorded_data["csv_path"] = csv_file_path
-        st.session_state.recorded_data["video_path"] = video_file
-        st.success("✅ Recording complete. Gait features will now be shown below.")
+                st.session_state.recorded_data["frame_idx"] += 1
 
-    # Show gait metrics after stopping
-    if not st.session_state.recording and st.session_state.recorded_data["frame_idx"] > 0:
+        elif st.session_state.action == "stop":
+            cap.release()
+            st.session_state.output_files["video"].release()
+            st.session_state.output_files["csv"].close()
+            st.session_state.recorded_data["csv_path"] = st.session_state.output_files["csv_path"]
+            st.session_state.recorded_data["video_path"] = st.session_state.output_files["video_path"]
+            break
+
+    # Gait Metrics Display
+    if st.session_state.action == "stop" and st.session_state.recorded_data["frame_idx"] > 0:
         rd = st.session_state.recorded_data
         fps = 30
         duration = rd["frame_idx"] / fps
@@ -152,7 +165,7 @@ def run_live_gait_analysis():
                 min_vals = np.min(arr, axis=0)
                 max_vals = np.max(arr, axis=0)
                 rom = max_vals - min_vals
-                st.markdown(f"- **{joint.replace('_', ' ').title()} ROM:** `x: {rom[0]:.3f}`, `y: {rom[1]:.3f}`, `z: {rom[2]:.3f}`")
+                st.markdown(f"- **{joint.replace('_', ' ').title()} ROM:** `x: {rom[0]:.3f}`, `y: {rom[1]:.3f}`, `z: {rom[2]:.3f}`)
 
         st.subheader("📈 Step Distance Signal")
         fig, ax = plt.subplots()
