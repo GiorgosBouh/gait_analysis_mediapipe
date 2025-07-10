@@ -187,8 +187,8 @@ def run_live_gait_analysis():
 
                 rd["frame_count"] += 1
 
-        # Break loop when recording is stopped
-        if not st.session_state.recording and rd.get("frame_count", 0) > 0:
+        # Break loop when recording is stopped and we have some frames
+        if not st.session_state.recording and st.session_state.recorded_data["frame_count"] > 0:
             break
 
     # Release resources
