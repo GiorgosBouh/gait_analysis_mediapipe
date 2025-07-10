@@ -40,7 +40,7 @@ def run_live_gait_analysis():
             },
             "angles": {
                 'left_knee': [], 'right_knee': [],
-                'left_hip": [], 'right_hip': [],
+                'left_hip': [], 'right_hip': [],
                 'left_ankle': [], 'right_ankle': []
             },
             "frame_idx": 0,
