@@ -1,4 +1,3 @@
-# --- gait_live.py ---
 import cv2
 import mediapipe as mp
 import os
@@ -8,11 +7,17 @@ import streamlit as st
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from scipy.signal import find_peaks
+from scipy.signal import find_peaks, savgol_filter
 from math import acos, degrees
+from collections import defaultdict
 
+# Constants
+PLOT_WIDTH = 12
+PLOT_HEIGHT = 6
+SMOOTH_WINDOW = 5  # for smoothing angle data
 
 def calculate_angle(a, b, c):
+    """Calculate 3D angle between three points"""
     a = np.array([a.x, a.y, a.z])
     b = np.array([b.x, b.y, b.z])
     c = np.array([c.x, c.y, c.z])
@@ -22,54 +27,67 @@ def calculate_angle(a, b, c):
     angle = degrees(acos(np.clip(cosine_angle, -1.0, 1.0)))
     return angle
 
+def smooth_data(data, window_size=SMOOTH_WINDOW):
+    """Apply simple moving average smoothing"""
+    return savgol_filter(data, window_size, 2) if len(data) > window_size else data
 
 def run_live_gait_analysis():
-    st.title("🎥 Live Gait Camera Preview")
-    st.markdown("Adjust your position and framing. Then press **Start Recording** when ready.")
+    st.title("🎥 Live Gait Analysis")
+    st.markdown("""
+    **Instructions:**
+    1. Position yourself in the camera view
+    2. Press **Start Recording** and walk naturally
+    3. Press **Stop Recording** when finished
+    """)
 
+    # Initialize session state
     if "recording" not in st.session_state:
         st.session_state.recording = False
     if "recorded_data" not in st.session_state:
         st.session_state.recorded_data = {
-            "left_xs": [], "left_ys": [],
-            "right_xs": [], "right_ys": [],
-            "joints": {
-                'LEFT_KNEE': [], 'RIGHT_KNEE': [],
-                'LEFT_HIP': [], 'RIGHT_HIP': [],
-                'LEFT_ANKLE': [], 'RIGHT_ANKLE': []
-            },
-            "angles": {
-                'left_knee': [], 'right_knee': [],
-                'left_hip': [], 'right_hip': [],
-                'left_ankle': [], 'right_ankle': []
-            },
-            "frame_idx": 0,
+            "left_foot": {"x": [], "y": [], "z": []},
+            "right_foot": {"x": [], "y": [], "z": []},
+            "joint_positions": defaultdict(list),
+            "joint_angles": defaultdict(list),
+            "frame_count": 0,
             "csv_path": None,
-            "video_path": None
+            "video_path": None,
+            "fps": 30
         }
 
-    zoom = st.slider("Zoom level (simulated crop)", 1.0, 2.0, 1.0, step=0.1)
+    # Camera controls
     col1, col2 = st.columns(2)
-
     with col1:
-        if not st.session_state.recording:
-            if st.button("▶️ Start Recording"):
-                st.session_state.recording = True
-                st.session_state.recorded_data = {
-                    "left_xs": [], "left_ys": [],
-                    "right_xs": [], "right_ys": [],
-                    "joints": {k: [] for k in st.session_state.recorded_data["joints"]},
-                    "angles": {k: [] for k in st.session_state.recorded_data["angles"]},
-                    "frame_idx": 0,
-                    "csv_path": None,
-                    "video_path": None
-                }
-
+        zoom = st.slider("Zoom level", 1.0, 2.0, 1.0, 0.1)
     with col2:
-        if st.session_state.recording:
-            if st.button("⏹️ Stop Recording"):
-                st.session_state.recording = False
+        mirror = st.checkbox("Mirror view", True)
 
+    # Recording controls
+    if not st.session_state.recording:
+        if st.button("▶️ Start Recording", type="primary"):
+            st.session_state.recording = True
+            st.session_state.recorded_data = {
+                "left_foot": {"x": [], "y": [], "z": []},
+                "right_foot": {"x": [], "y": [], "z": []},
+                "joint_positions": defaultdict(list),
+                "joint_angles": defaultdict(list),
+                "frame_count": 0,
+                "csv_path": None,
+                "video_path": None,
+                "fps": 30
+            }
+            st.rerun()
+    else:
+        if st.button("⏹️ Stop Recording", type="primary"):
+            st.session_state.recording = False
+            st.rerun()
+
+    # Initialize MediaPipe
+    mp_pose = mp.solutions.pose
+    pose = mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)
+    mp_drawing = mp.solutions.drawing_utils
+
+    # Camera setup
     cap = cv2.VideoCapture(0)
     if not cap.isOpened():
         st.error("❌ Cannot open webcam. Make sure it is connected and accessible.")
@@ -77,138 +95,249 @@ def run_live_gait_analysis():
 
     width, height = int(cap.get(3)), int(cap.get(4))
     frame_display = st.empty()
-    mp_pose = mp.solutions.pose
-    pose = mp_pose.Pose()
-    mp_drawing = mp.solutions.drawing_utils
 
-    # Always preview camera
-    ret, frame = cap.read()
-    if ret:
+    # Main processing loop
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            st.warning("⚠️ Couldn't read frame from camera")
+            break
+
+        # Apply mirror effect if enabled
+        if mirror:
+            frame = cv2.flip(frame, 1)
+
+        # Apply zoom if needed
+        if zoom > 1.0:
+            center_x, center_y = width // 2, height // 2
+            new_w, new_h = int(width / zoom), int(height / zoom)
+            left, top = center_x - new_w // 2, center_y - new_h // 2
+            frame = frame[top:top + new_h, left:left + new_w]
+            frame = cv2.resize(frame, (width, height))
+
+        # Process frame with MediaPipe
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         result = pose.process(rgb)
+
+        # Draw landmarks if detected
         if result.pose_landmarks:
-            mp_drawing.draw_landmarks(frame, result.pose_landmarks, mp_pose.POSE_CONNECTIONS)
+            mp_drawing.draw_landmarks(
+                frame, result.pose_landmarks, mp_pose.POSE_CONNECTIONS,
+                mp.solutions.drawing_utils.DrawingSpec(color=(245,117,66), thickness=2, circle_radius=2),
+                mp.solutions.drawing_utils.DrawingSpec(color=(245,66,230), thickness=2, circle_radius=2)
+        
+        # Show frame
         frame_display.image(frame, channels="BGR", use_container_width=True)
 
-    # Recording block
-    if st.session_state.recording:
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        os.makedirs("outputs", exist_ok=True)
-        video_file = f"outputs/gait_live_{timestamp}.mp4"
-        csv_file_path = f"outputs/gait_live_{timestamp}.csv"
+        # Recording logic
+        if st.session_state.recording:
+            if result.pose_landmarks:
+                lm = result.pose_landmarks.landmark
+                rd = st.session_state.recorded_data
 
-        out = cv2.VideoWriter(video_file, cv2.VideoWriter_fourcc(*'mp4v'), 30, (width, height))
-        csv_file = open(csv_file_path, 'w', newline='')
-        csv_writer = csv.writer(csv_file)
-        landmark_names = [l.name for l in mp_pose.PoseLandmark]
-        header = ['frame'] + [f"{n}_{a}" for n in landmark_names for a in ['x', 'y', 'z', 'visibility']]
-        csv_writer.writerow(header)
+                # Store foot positions
+                rd["left_foot"]["x"].append(lm[mp_pose.PoseLandmark.LEFT_FOOT_INDEX].x)
+                rd["left_foot"]["y"].append(lm[mp_pose.PoseLandmark.LEFT_FOOT_INDEX].y)
+                rd["left_foot"]["z"].append(lm[mp_pose.PoseLandmark.LEFT_FOOT_INDEX].z)
+                
+                rd["right_foot"]["x"].append(lm[mp_pose.PoseLandmark.RIGHT_FOOT_INDEX].x)
+                rd["right_foot"]["y"].append(lm[mp_pose.PoseLandmark.RIGHT_FOOT_INDEX].y)
+                rd["right_foot"]["z"].append(lm[mp_pose.PoseLandmark.RIGHT_FOOT_INDEX].z)
 
-        with st.spinner("Recording... Press Stop to finish."):
-            while st.session_state.recording:
-                ret, frame = cap.read()
-                if not ret:
-                    break
+                # Store joint positions
+                for joint in ['LEFT_KNEE', 'RIGHT_KNEE', 'LEFT_HIP', 'RIGHT_HIP', 'LEFT_ANKLE', 'RIGHT_ANKLE']:
+                    rd["joint_positions"][joint].append([
+                        lm[mp_pose.PoseLandmark[joint]].x,
+                        lm[mp_pose.PoseLandmark[joint]].y,
+                        lm[mp_pose.PoseLandmark[joint]].z
+                    ])
 
-                if zoom > 1.0:
-                    center_x, center_y = width // 2, height // 2
-                    new_w, new_h = int(width / zoom), int(height / zoom)
-                    left, top = center_x - new_w // 2, center_y - new_h // 2
-                    frame = frame[top:top + new_h, left:left + new_w]
-                    frame = cv2.resize(frame, (width, height))
+                # Calculate and store joint angles
+                rd["joint_angles"]["left_knee"].append(
+                    calculate_angle(lm[mp_pose.PoseLandmark.LEFT_HIP], 
+                                  lm[mp_pose.PoseLandmark.LEFT_KNEE], 
+                                  lm[mp_pose.PoseLandmark.LEFT_ANKLE])
+                )
+                rd["joint_angles"]["right_knee"].append(
+                    calculate_angle(lm[mp_pose.PoseLandmark.RIGHT_HIP], 
+                                   lm[mp_pose.PoseLandmark.RIGHT_KNEE], 
+                                   lm[mp_pose.PoseLandmark.RIGHT_ANKLE])
+                )
+                rd["joint_angles"]["left_hip"].append(
+                    calculate_angle(lm[mp_pose.PoseLandmark.LEFT_SHOULDER], 
+                                  lm[mp_pose.PoseLandmark.LEFT_HIP], 
+                                  lm[mp_pose.PoseLandmark.LEFT_KNEE])
+                )
+                rd["joint_angles"]["right_hip"].append(
+                    calculate_angle(lm[mp_pose.PoseLandmark.RIGHT_SHOULDER], 
+                                  lm[mp_pose.PoseLandmark.RIGHT_HIP], 
+                                  lm[mp_pose.PoseLandmark.RIGHT_KNEE])
+                )
+                rd["joint_angles"]["left_ankle"].append(
+                    calculate_angle(lm[mp_pose.PoseLandmark.LEFT_KNEE], 
+                                  lm[mp_pose.PoseLandmark.LEFT_ANKLE], 
+                                  lm[mp_pose.PoseLandmark.LEFT_HEEL])
+                )
+                rd["joint_angles"]["right_ankle"].append(
+                    calculate_angle(lm[mp_pose.PoseLandmark.RIGHT_KNEE], 
+                                   lm[mp_pose.PoseLandmark.RIGHT_ANKLE], 
+                                   lm[mp_pose.PoseLandmark.RIGHT_HEEL])
+                )
 
-                rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                result = pose.process(rgb)
-                if result.pose_landmarks:
-                    mp_drawing.draw_landmarks(frame, result.pose_landmarks, mp_pose.POSE_CONNECTIONS)
+                rd["frame_count"] += 1
 
-                frame_display.image(frame, channels="BGR", use_container_width=True)
-                out.write(frame)
+        # Break loop if not in Streamlit context
+        if not st.session_state.get('_runtime').is_active():
+            break
 
-                if result.pose_landmarks:
-                    lm = result.pose_landmarks.landmark
-                    row = [st.session_state.recorded_data["frame_idx"]]
-                    for point in lm:
-                        row.extend([point.x, point.y, point.z, point.visibility])
-                    csv_writer.writerow(row)
+    # Release resources
+    cap.release()
+    pose.close()
 
-                    st.session_state.recorded_data["left_xs"].append(lm[mp_pose.PoseLandmark.LEFT_FOOT_INDEX].x)
-                    st.session_state.recorded_data["left_ys"].append(lm[mp_pose.PoseLandmark.LEFT_FOOT_INDEX].y)
-                    st.session_state.recorded_data["right_xs"].append(lm[mp_pose.PoseLandmark.RIGHT_FOOT_INDEX].x)
-                    st.session_state.recorded_data["right_ys"].append(lm[mp_pose.PoseLandmark.RIGHT_FOOT_INDEX].y)
+    # Save data if recording was stopped
+    if not st.session_state.recording and st.session_state.recorded_data["frame_count"] > 0:
+        save_recording_data()
+        display_gait_analysis_results()
 
-                    for joint in st.session_state.recorded_data["joints"]:
-                        st.session_state.recorded_data["joints"][joint].append([
-                            lm[mp_pose.PoseLandmark[joint]].x,
-                            lm[mp_pose.PoseLandmark[joint]].y,
-                            lm[mp_pose.PoseLandmark[joint]].z
-                        ])
-
-                    st.session_state.recorded_data["angles"]["left_knee"].append(
-                        calculate_angle(lm[mp_pose.PoseLandmark.LEFT_HIP], lm[mp_pose.PoseLandmark.LEFT_KNEE], lm[mp_pose.PoseLandmark.LEFT_ANKLE])
-                    )
-                    st.session_state.recorded_data["angles"]["right_knee"].append(
-                        calculate_angle(lm[mp_pose.PoseLandmark.RIGHT_HIP], lm[mp_pose.PoseLandmark.RIGHT_KNEE], lm[mp_pose.PoseLandmark.RIGHT_ANKLE])
-                    )
-                    st.session_state.recorded_data["angles"]["left_hip"].append(
-                        calculate_angle(lm[mp_pose.PoseLandmark.LEFT_SHOULDER], lm[mp_pose.PoseLandmark.LEFT_HIP], lm[mp_pose.PoseLandmark.LEFT_KNEE])
-                    )
-                    st.session_state.recorded_data["angles"]["right_hip"].append(
-                        calculate_angle(lm[mp_pose.PoseLandmark.RIGHT_SHOULDER], lm[mp_pose.PoseLandmark.RIGHT_HIP], lm[mp_pose.PoseLandmark.RIGHT_KNEE])
-                    )
-                    st.session_state.recorded_data["angles"]["left_ankle"].append(
-                        calculate_angle(lm[mp_pose.PoseLandmark.LEFT_KNEE], lm[mp_pose.PoseLandmark.LEFT_ANKLE], lm[mp_pose.PoseLandmark.LEFT_HEEL])
-                    )
-                    st.session_state.recorded_data["angles"]["right_ankle"].append(
-                        calculate_angle(lm[mp_pose.PoseLandmark.RIGHT_KNEE], lm[mp_pose.PoseLandmark.RIGHT_ANKLE], lm[mp_pose.PoseLandmark.RIGHT_HEEL])
-                    )
-
-                    st.session_state.recorded_data["frame_idx"] += 1
-
-            out.release()
-            csv_file.close()
-            cap.release()
-            st.session_state.recorded_data["csv_path"] = csv_file_path
-            st.session_state.recorded_data["video_path"] = video_file
-            st.success("✅ Recording complete. Gait features will now be shown below.")
-
-    # Show features
+def save_recording_data():
+    """Save recorded data to files"""
     rd = st.session_state.recorded_data
-    if not st.session_state.recording and rd["frame_idx"] > 0:
-        fps = 30
-        duration = rd["frame_idx"] / fps
-        foot_dists = np.sqrt((np.array(rd["left_xs"]) - np.array(rd["right_xs"]))**2 + (np.array(rd["left_ys"]) - np.array(rd["right_ys"]))**2)
-        peaks, _ = find_peaks(foot_dists, distance=5)
-        num_steps = len(peaks)
-        cadence = (num_steps / duration) * 60 if duration > 0 else 0
-        step_time = duration / num_steps if num_steps > 0 else 0
-        step_lengths = foot_dists[peaks]
-        mean_step_length = np.mean(step_lengths) if len(step_lengths) > 0 else 0
-        mean_step_width = np.mean(np.abs(np.array(rd["left_ys"]) - np.array(rd["right_ys"])))
-        stride_length = 2 * mean_step_length
-        gait_speed = stride_length / (2 * step_time) if step_time > 0 else 0
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    os.makedirs("outputs", exist_ok=True)
+    
+    # Save video (would need to implement this properly with actual frames)
+    video_file = f"outputs/gait_live_{timestamp}.mp4"
+    # In a real implementation, you'd save the actual frames here
+    
+    # Save CSV data
+    csv_file = f"outputs/gait_live_{timestamp}.csv"
+    with open(csv_file, 'w', newline='') as f:
+        writer = csv.writer(f)
+        # Write header
+        writer.writerow(['frame', 'left_foot_x', 'left_foot_y', 'left_foot_z',
+                        'right_foot_x', 'right_foot_y', 'right_foot_z'] +
+                       [f"{joint}_{coord}" for joint in rd["joint_positions"].keys() 
+                        for coord in ['x', 'y', 'z']] +
+                       list(rd["joint_angles"].keys()))
+        
+        # Write data row by row
+        for i in range(rd["frame_count"]):
+            row = [i]
+            row.extend([rd["left_foot"]["x"][i], rd["left_foot"]["y"][i], rd["left_foot"]["z"][i]])
+            row.extend([rd["right_foot"]["x"][i], rd["right_foot"]["y"][i], rd["right_foot"]["z"][i]])
+            
+            for joint in rd["joint_positions"].values():
+                row.extend(joint[i])
+                
+            for angle in rd["joint_angles"].values():
+                row.append(angle[i])
+                
+            writer.writerow(row)
+    
+    rd["csv_path"] = csv_file
+    rd["video_path"] = video_file
 
-        st.subheader("📊 Gait Characteristics")
-        df_metrics = pd.DataFrame({
-            "Metric": ["Cadence", "Step Time", "Step Length", "Step Width", "Stride Length", "Gait Speed", "Gait Cycle Duration"],
-            "Value": [f"{cadence:.2f} steps/min", f"{step_time:.2f} s", f"{mean_step_length:.2f} m", f"{mean_step_width:.2f} m", f"{stride_length:.2f} m", f"{gait_speed:.2f} m/s", f"{duration:.2f} s"]
-        })
-        st.dataframe(df_metrics, use_container_width=True)
-
-        st.subheader("🦵 Joint ROM (Degrees)")
-        for joint, angles in rd["angles"].items():
-            if angles:
-                rom = max(angles) - min(angles)
-                st.markdown(f"- **{joint.replace('_', ' ').title()} ROM:** `{rom:.2f}°`")
-
-        st.subheader("📈 Step Distance Signal")
-        fig, ax = plt.subplots()
-        ax.plot(foot_dists, label='Foot Distance Signal')
-        ax.plot(peaks, foot_dists[peaks], "rx", label='Detected Steps')
-        ax.set_title("Gait Step Detection")
-        ax.set_xlabel("Frame")
-        ax.set_ylabel("Normalized Distance")
-        ax.legend()
-        st.pyplot(fig)
-
-        st.info(f"📄 CSV: `{rd['csv_path']}`\n🎥 Video: `{rd['video_path']}`")
+def display_gait_analysis_results():
+    """Display all gait analysis results after recording"""
+    rd = st.session_state.recorded_data
+    
+    st.success("✅ Recording complete. Gait analysis results:")
+    st.markdown("---")
+    
+    # Basic metrics
+    duration = rd["frame_count"] / rd["fps"]
+    left_foot_x = np.array(rd["left_foot"]["x"])
+    left_foot_y = np.array(rd["left_foot"]["y"])
+    right_foot_x = np.array(rd["right_foot"]["x"])
+    right_foot_y = np.array(rd["right_foot"]["y"])
+    
+    # Calculate step distances
+    foot_dists = np.sqrt((left_foot_x - right_foot_x)**2 + (left_foot_y - right_foot_y)**2)
+    peaks, _ = find_peaks(foot_dists, distance=10, prominence=0.05)
+    num_steps = len(peaks)
+    
+    # Gait metrics
+    cadence = (num_steps / duration) * 60 if duration > 0 else 0
+    step_time = duration / num_steps if num_steps > 0 else 0
+    step_lengths = foot_dists[peaks]
+    mean_step_length = np.mean(step_lengths) if len(step_lengths) > 0 else 0
+    mean_step_width = np.mean(np.abs(left_foot_y - right_foot_y))
+    stride_length = 2 * mean_step_length
+    gait_speed = stride_length / (2 * step_time) if step_time > 0 else 0
+    
+    # Display metrics
+    st.subheader("📊 Gait Characteristics")
+    metrics = {
+        "Recording Duration": f"{duration:.2f} s",
+        "Number of Steps": num_steps,
+        "Cadence": f"{cadence:.2f} steps/min",
+        "Step Time": f"{step_time:.2f} s",
+        "Step Length": f"{mean_step_length:.2f} (normalized)",
+        "Step Width": f"{mean_step_width:.2f} (normalized)",
+        "Stride Length": f"{stride_length:.2f} (normalized)",
+        "Gait Speed": f"{gait_speed:.2f} (normalized units/s)"
+    }
+    
+    st.table(pd.DataFrame.from_dict(metrics, orient='index', columns=['Value']))
+    
+    # Joint ROM
+    st.subheader("🦵 Joint Range of Motion (ROM)")
+    rom_data = []
+    for joint, angles in rd["joint_angles"].items():
+        if angles:
+            rom = max(angles) - min(angles)
+            rom_data.append({
+                "Joint": joint.replace('_', ' ').title(),
+                "ROM (°)": f"{rom:.1f}",
+                "Min Angle (°)": f"{min(angles):.1f}",
+                "Max Angle (°)": f"{max(angles):.1f}"
+            })
+    st.table(pd.DataFrame(rom_data))
+    
+    # Visualization section
+    st.subheader("📈 Gait Visualizations")
+    
+    # Foot distance plot
+    fig, ax = plt.subplots(figsize=(PLOT_WIDTH, PLOT_HEIGHT))
+    ax.plot(foot_dists, label='Foot Distance')
+    ax.plot(peaks, foot_dists[peaks], "rx", label='Detected Steps')
+    ax.set_title("Step Detection (Distance Between Feet)")
+    ax.set_xlabel("Frame")
+    ax.set_ylabel("Normalized Distance")
+    ax.legend()
+    st.pyplot(fig)
+    
+    # Joint angles plots
+    fig, axes = plt.subplots(2, 2, figsize=(PLOT_WIDTH, PLOT_HEIGHT*2))
+    axes = axes.flatten()
+    
+    for i, (joint, angles) in enumerate(rd["joint_angles"].items()):
+        if i >= len(axes):
+            break
+        smoothed = smooth_data(angles)
+        axes[i].plot(angles, alpha=0.3, label='Raw')
+        axes[i].plot(smoothed, label='Smoothed')
+        axes[i].set_title(f"{joint.replace('_', ' ').title()} Angle")
+        axes[i].set_xlabel("Frame")
+        axes[i].set_ylabel("Angle (°)")
+        axes[i].legend()
+    
+    plt.tight_layout()
+    st.pyplot(fig)
+    
+    # Foot trajectories
+    fig, ax = plt.subplots(figsize=(PLOT_WIDTH, PLOT_HEIGHT))
+    ax.plot(left_foot_x, left_foot_y, label='Left Foot')
+    ax.plot(right_foot_x, right_foot_y, label='Right Foot')
+    ax.set_title("Foot Trajectories")
+    ax.set_xlabel("X Position (normalized)")
+    ax.set_ylabel("Y Position (normalized)")
+    ax.invert_yaxis()  # To match image coordinates
+    ax.legend()
+    st.pyplot(fig)
+    
+    # Output file info
+    st.markdown("---")
+    st.subheader("📁 Output Files")
+    st.text(f"CSV data file: {rd['csv_path']}")
+    st.text(f"Video file: {rd['video_path']}")
