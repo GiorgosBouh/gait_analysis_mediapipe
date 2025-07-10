@@ -125,7 +125,7 @@ def run_live_gait_analysis():
                 frame, result.pose_landmarks, mp_pose.POSE_CONNECTIONS,
                 mp.solutions.drawing_utils.DrawingSpec(color=(245,117,66), thickness=2, circle_radius=2),
                 mp.solutions.drawing_utils.DrawingSpec(color=(245,66,230), thickness=2, circle_radius=2)
-        
+            )
         # Show frame
         frame_display.image(frame, channels="BGR", use_container_width=True)
 
