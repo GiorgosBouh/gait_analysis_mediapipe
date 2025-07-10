@@ -59,13 +59,20 @@ def detect_gait_phases(foot_distances, prominence=0.05):
     
     # Create gait phase segments
     phases = []
-    for i in range(len(peaks)-1):
+    for i in range(len(peaks) - 1):
         start = peaks[i]
-        mid = valleys[np.where((valleys > peaks[i]) & (valleys < peaks[i+1]))[0][0] if len(valleys) > 0 else (start + peaks[i+1])//2
-        end = peaks[i+1]
+        end = peaks[i + 1]
+
+        # Find valleys between peaks
+        between_valleys = valleys[(valleys > start) & (valleys < end)]
+        if len(between_valleys) > 0:
+            mid = between_valleys[0]
+        else:
+            mid = (start + end) // 2  # fallback if no valley found
+
         phases.append(('stance', start, mid))
         phases.append(('swing', mid, end))
-    
+
     return phases
 
 def run_live_gait_analysis():
