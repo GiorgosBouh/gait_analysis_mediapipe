@@ -73,31 +73,32 @@ def detect_gait_phases(foot_distances, prominence=0.05):
     valleys, _ = find_peaks(-foot_distances, prominence=prominence)
     
     phases = []
-    for i in range(len(peaks) - 1):
+    for i in range(len(peaks)-1):
         start = peaks[i]
-        end = peaks[i + 1]
-
-        # Filter valleys between current and next peak
-        between_valleys = valleys[(valleys > start) & (valleys < end)]
-
-        if len(between_valleys) > 0:
-            mid = between_valleys[0]
-        else:
-            mid = (start + end) // 2  # fallback midpoint
-
+        mid = valleys[np.where((valleys > peaks[i]) & (valleys < peaks[i+1]))[0][0] if len(valleys) > 0 else (start + peaks[i+1])//2
+        end = peaks[i+1]
         phases.append(('stance', start, mid))
         phases.append(('swing', mid, end))
-
+    
     return phases
 
 def run_live_gait_analysis():
-    st.title("🎥 Live Gait Analysis")
-    st.markdown("""
-    **Instructions:**
-    1. Stand straight in the camera view (knees fully extended, ankles neutral)
-    2. Press **Start Recording** and walk naturally
-    3. Press **Stop Recording** when finished
-    """)
+    st.title("🎥 Live Gait Analysis with Calibration")
+    
+    # CALIBRATION STEP
+    if "user_height" not in st.session_state:
+        col1, col2 = st.columns(2)
+        with col1:
+            height = st.number_input("Enter your height (cm):", min_value=100, max_value=250, value=170)
+        with col2:
+            if st.button("Set Height"):
+                st.session_state.user_height = height
+                st.success(f"Height set to {height} cm")
+                st.session_state.height_set = True
+    
+    if "user_height" not in st.session_state:
+        st.warning("Please enter your height to begin")
+        return
 
     # Initialize session state
     if "recording" not in st.session_state:
@@ -288,7 +289,7 @@ def run_live_gait_analysis():
     if not st.session_state.recording and st.session_state.recorded_data["frame_count"] > 0:
         save_recording_data()
         display_gait_analysis_results()
-        
+
 def save_recording_data():
     """Save recorded data to files"""
     rd = st.session_state.recorded_data
@@ -365,19 +366,23 @@ def display_gait_analysis_results():
     mean_step_width = np.mean(np.abs(left_foot_y - right_foot_y))
     gait_speed = (left_stride_length + right_stride_length) / (4 * step_time) if step_time > 0 else 0
     
-    # Display metrics
-    st.subheader("📊 Gait Characteristics")
+    # Convert normalized values to cm using the height
+    height_cm = st.session_state.user_height
+    norm_to_cm = height_cm / 100  # Conversion factor based on average proportions
+    
+    # Display metrics in real units
+    st.subheader("📊 Gait Characteristics (Real Units)")
     metrics = {
         "Recording Duration": f"{duration:.2f} s",
-        "Number of Steps": f"{num_steps} ({len(left_step_lengths)} left, {len(right_step_lengths)} right)",
+        "Number of Steps": f"{num_steps}",
         "Cadence": f"{cadence:.2f} steps/min",
         "Step Time": f"{step_time:.2f} s",
-        "Left Step Length": f"{left_mean_step_length:.2f} (normalized)",
-        "Right Step Length": f"{right_mean_step_length:.2f} (normalized)",
-        "Left Stride Length": f"{left_stride_length:.2f} (normalized)",
-        "Right Stride Length": f"{right_stride_length:.2f} (normalized)",
-        "Step Width": f"{mean_step_width:.2f} (normalized)",
-        "Gait Speed": f"{gait_speed:.2f} (normalized units/s)"
+        "Left Step Length": f"{left_mean_step_length * norm_to_cm:.1f} cm",
+        "Right Step Length": f"{right_mean_step_length * norm_to_cm:.1f} cm", 
+        "Left Stride Length": f"{left_stride_length * norm_to_cm:.1f} cm",
+        "Right Stride Length": f"{right_stride_length * norm_to_cm:.1f} cm",
+        "Step Width": f"{mean_step_width * norm_to_cm:.1f} cm",
+        "Gait Speed": f"{gait_speed * norm_to_cm:.2f} cm/s"
     }
     
     st.table(pd.DataFrame.from_dict(metrics, orient='index', columns=['Value']))
