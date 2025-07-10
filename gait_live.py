@@ -73,13 +73,23 @@ def detect_gait_phases(foot_distances, prominence=0.05):
     valleys, _ = find_peaks(-foot_distances, prominence=prominence)
     
     phases = []
-    for i in range(len(peaks)-1):
+    for i in range(len(peaks) - 1):
         start = peaks[i]
-        mid = valleys[np.where((valleys > peaks[i]) & (valleys < peaks[i+1]))[0][0] if len(valleys) > 0 else (start + peaks[i+1])//2
-        end = peaks[i+1]
+        end = peaks[i + 1]
+
+        if len(valleys) > 0:
+            # Βρίσκουμε τη valley που είναι ανάμεσα στα δύο peaks
+            mid_candidates = valleys[(valleys > start) & (valleys < end)]
+            if len(mid_candidates) > 0:
+                mid = mid_candidates[0]
+            else:
+                mid = (start + end) // 2  # fallback
+        else:
+            mid = (start + end) // 2
+
         phases.append(('stance', start, mid))
         phases.append(('swing', mid, end))
-    
+
     return phases
 
 def run_live_gait_analysis():
