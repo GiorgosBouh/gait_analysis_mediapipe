@@ -38,13 +38,15 @@ def detect_gait_phases(foot_distances, prominence=0.05):
     
     # Create gait phase segments
     phases = []
-    for i in range(len(peaks)-1):
+    for i in range(len(peaks) - 1):
         start = peaks[i]
-        mid = valleys[np.where((valleys > peaks[i]) & (valleys < peaks[i+1]))[0][0]
-        end = peaks[i+1]
-        phases.append(('stance', start, mid))
-        phases.append(('swing', mid, end))
-    
+        # Find the first valley between two peaks
+        mid_indices = np.where((valleys > peaks[i]) & (valleys < peaks[i + 1]))[0]
+        if len(mid_indices) > 0:
+            mid = valleys[mid_indices[0]]
+            end = peaks[i + 1]
+            phases.append(('stance', start, mid))
+            phases.append(('swing', mid, end))
     return phases
 
 def run_live_gait_analysis():
