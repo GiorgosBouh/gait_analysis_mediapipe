@@ -23,6 +23,11 @@ def calculate_angle(a, b, c):
     return angle
 
 
+def detect_heel_strikes(y_positions):
+    peaks, _ = find_peaks(-np.array(y_positions), distance=10)
+    return peaks
+
+
 def run_live_gait_analysis():
     st.title("🎥 Live Gait Camera Preview")
     st.markdown("Adjust your position and framing. Then press **Start Recording** when ready.")
@@ -31,35 +36,28 @@ def run_live_gait_analysis():
         st.session_state.recording = False
     if "recorded_data" not in st.session_state:
         st.session_state.recorded_data = {
-            "left_xs": [], "left_ys": [],
-            "right_xs": [], "right_ys": [],
-            "joints": {
-                'LEFT_KNEE': [], 'RIGHT_KNEE': [],
-                'LEFT_HIP': [], 'RIGHT_HIP': [],
-                'LEFT_ANKLE': [], 'RIGHT_ANKLE': []
-            },
-            "angles": {
-                'left_knee': [], 'right_knee': [],
-                'left_hip': [], 'right_hip': [],
-                'left_ankle': [], 'right_ankle': []
-            },
+            "left_heel_x": [], "left_heel_y": [],
+            "right_heel_x": [], "right_heel_y": [],
+            "joints": {j: [] for j in [
+                'LEFT_KNEE', 'RIGHT_KNEE', 'LEFT_HIP', 'RIGHT_HIP', 'LEFT_ANKLE', 'RIGHT_ANKLE']},
+            "angles": {j: [] for j in [
+                'left_knee', 'right_knee', 'left_hip', 'right_hip', 'left_ankle', 'right_ankle']},
             "frame_idx": 0,
             "csv_path": None,
             "video_path": None
         }
 
     zoom = st.slider("Zoom level (simulated crop)", 1.0, 2.0, 1.0, step=0.1)
-
     col1, col2 = st.columns(2)
     with col1:
         if not st.session_state.recording:
             if st.button("▶️ Start Recording"):
                 st.session_state.recording = True
                 st.session_state.recorded_data = {
-                    "left_xs": [], "left_ys": [],
-                    "right_xs": [], "right_ys": [],
-                    "joints": {k: [] for k in st.session_state.recorded_data["joints"]},
-                    "angles": {k: [] for k in st.session_state.recorded_data["angles"]},
+                    "left_heel_x": [], "left_heel_y": [],
+                    "right_heel_x": [], "right_heel_y": [],
+                    "joints": {j: [] for j in st.session_state.recorded_data["joints"]},
+                    "angles": {j: [] for j in st.session_state.recorded_data["angles"]},
                     "frame_idx": 0,
                     "csv_path": None,
                     "video_path": None
@@ -76,7 +74,6 @@ def run_live_gait_analysis():
 
     width, height = int(cap.get(3)), int(cap.get(4))
     frame_display = st.empty()
-
     mp_pose = mp.solutions.pose
     pose = mp_pose.Pose()
     mp_drawing = mp.solutions.drawing_utils
@@ -99,7 +96,6 @@ def run_live_gait_analysis():
                 ret, frame = cap.read()
                 if not ret:
                     break
-
                 if zoom > 1.0:
                     center_x, center_y = width // 2, height // 2
                     new_w, new_h = int(width / zoom), int(height / zoom)
@@ -111,57 +107,41 @@ def run_live_gait_analysis():
                 result = pose.process(rgb)
                 if result.pose_landmarks:
                     mp_drawing.draw_landmarks(frame, result.pose_landmarks, mp_pose.POSE_CONNECTIONS)
-
                 frame_display.image(frame, channels="BGR", use_container_width=True)
                 out.write(frame)
 
                 if result.pose_landmarks:
-                    row = [st.session_state.recorded_data["frame_idx"]]
-                    for lm in result.pose_landmarks.landmark:
-                        row.extend([lm.x, lm.y, lm.z, lm.visibility])
+                    lm = result.pose_landmarks.landmark
+                    row = [st.session_state.recorded_data["frame_idx"]] + [v for landmark in lm for v in [landmark.x, landmark.y, landmark.z, landmark.visibility]]
                     csv_writer.writerow(row)
 
-                    lm = result.pose_landmarks.landmark
-                    st.session_state.recorded_data["left_xs"].append(lm[mp_pose.PoseLandmark.LEFT_FOOT_INDEX].x)
-                    st.session_state.recorded_data["left_ys"].append(lm[mp_pose.PoseLandmark.LEFT_FOOT_INDEX].y)
-                    st.session_state.recorded_data["right_xs"].append(lm[mp_pose.PoseLandmark.RIGHT_FOOT_INDEX].x)
-                    st.session_state.recorded_data["right_ys"].append(lm[mp_pose.PoseLandmark.RIGHT_FOOT_INDEX].y)
+                    st.session_state.recorded_data["left_heel_x"].append(lm[mp_pose.PoseLandmark.LEFT_HEEL].x)
+                    st.session_state.recorded_data["left_heel_y"].append(lm[mp_pose.PoseLandmark.LEFT_HEEL].y)
+                    st.session_state.recorded_data["right_heel_x"].append(lm[mp_pose.PoseLandmark.RIGHT_HEEL].x)
+                    st.session_state.recorded_data["right_heel_y"].append(lm[mp_pose.PoseLandmark.RIGHT_HEEL].y)
 
                     for joint in st.session_state.recorded_data["joints"]:
-                        st.session_state.recorded_data["joints"][joint].append([
-                            lm[mp_pose.PoseLandmark[joint]].x,
-                            lm[mp_pose.PoseLandmark[joint]].y,
-                            lm[mp_pose.PoseLandmark[joint]].z
-                        ])
+                        st.session_state.recorded_data["joints"][joint].append([lm[mp_pose.PoseLandmark[joint]].x, lm[mp_pose.PoseLandmark[joint]].y, lm[mp_pose.PoseLandmark[joint]].z])
 
                     st.session_state.recorded_data["angles"]["left_knee"].append(
-                        calculate_angle(lm[mp_pose.PoseLandmark.LEFT_HIP], lm[mp_pose.PoseLandmark.LEFT_KNEE], lm[mp_pose.PoseLandmark.LEFT_ANKLE])
-                    )
+                        calculate_angle(lm[mp_pose.PoseLandmark.LEFT_HIP], lm[mp_pose.PoseLandmark.LEFT_KNEE], lm[mp_pose.PoseLandmark.LEFT_ANKLE]))
                     st.session_state.recorded_data["angles"]["right_knee"].append(
-                        calculate_angle(lm[mp_pose.PoseLandmark.RIGHT_HIP], lm[mp_pose.PoseLandmark.RIGHT_KNEE], lm[mp_pose.PoseLandmark.RIGHT_ANKLE])
-                    )
+                        calculate_angle(lm[mp_pose.PoseLandmark.RIGHT_HIP], lm[mp_pose.PoseLandmark.RIGHT_KNEE], lm[mp_pose.PoseLandmark.RIGHT_ANKLE]))
                     st.session_state.recorded_data["angles"]["left_hip"].append(
-                        calculate_angle(lm[mp_pose.PoseLandmark.LEFT_SHOULDER], lm[mp_pose.PoseLandmark.LEFT_HIP], lm[mp_pose.PoseLandmark.LEFT_KNEE])
-                    )
+                        calculate_angle(lm[mp_pose.PoseLandmark.LEFT_SHOULDER], lm[mp_pose.PoseLandmark.LEFT_HIP], lm[mp_pose.PoseLandmark.LEFT_KNEE]))
                     st.session_state.recorded_data["angles"]["right_hip"].append(
-                        calculate_angle(lm[mp_pose.PoseLandmark.RIGHT_SHOULDER], lm[mp_pose.PoseLandmark.RIGHT_HIP], lm[mp_pose.PoseLandmark.RIGHT_KNEE])
-                    )
+                        calculate_angle(lm[mp_pose.PoseLandmark.RIGHT_SHOULDER], lm[mp_pose.PoseLandmark.RIGHT_HIP], lm[mp_pose.PoseLandmark.RIGHT_KNEE]))
                     st.session_state.recorded_data["angles"]["left_ankle"].append(
-                        calculate_angle(lm[mp_pose.PoseLandmark.LEFT_KNEE], lm[mp_pose.PoseLandmark.LEFT_ANKLE], lm[mp_pose.PoseLandmark.LEFT_HEEL])
-                    )
+                        calculate_angle(lm[mp_pose.PoseLandmark.LEFT_KNEE], lm[mp_pose.PoseLandmark.LEFT_ANKLE], lm[mp_pose.PoseLandmark.LEFT_HEEL]))
                     st.session_state.recorded_data["angles"]["right_ankle"].append(
-                        calculate_angle(lm[mp_pose.PoseLandmark.RIGHT_KNEE], lm[mp_pose.PoseLandmark.RIGHT_ANKLE], lm[mp_pose.PoseLandmark.RIGHT_HEEL])
-                    )
+                        calculate_angle(lm[mp_pose.PoseLandmark.RIGHT_KNEE], lm[mp_pose.PoseLandmark.RIGHT_ANKLE], lm[mp_pose.PoseLandmark.RIGHT_HEEL]))
 
                     st.session_state.recorded_data["frame_idx"] += 1
 
         cap.release()
         out.release()
         csv_file.close()
-
-        st.session_state.recorded_data["csv_path"] = csv_file_path
-        st.session_state.recorded_data["video_path"] = video_file
-
+        st.session_state.recorded_data.update({"csv_path": csv_file_path, "video_path": video_file})
         st.success("✅ Recording complete. Gait features will now be shown below.")
     else:
         ret, frame = cap.read()
@@ -177,36 +157,42 @@ def run_live_gait_analysis():
         rd = st.session_state.recorded_data
         fps = 30
         duration = rd["frame_idx"] / fps
-        foot_dists_left = np.array(rd["left_xs"])
-        foot_dists_right = np.array(rd["right_xs"])
-        peaks_left, _ = find_peaks(foot_dists_left, distance=5)
-        peaks_right, _ = find_peaks(foot_dists_right, distance=5)
+        left_peaks = detect_heel_strikes(rd["left_heel_y"])
+        right_peaks = detect_heel_strikes(rd["right_heel_y"])
 
-        def gait_stats(peaks, foot_dists, side="Left"):
-            num_steps = len(peaks)
-            step_time = duration / num_steps if num_steps > 0 else 0
-            step_lengths = foot_dists[peaks]
-            mean_step_length = np.mean(step_lengths) if len(step_lengths) > 0 else 0
-            stride_length = 2 * mean_step_length
-            cadence = (num_steps / duration) * 60 if duration > 0 else 0
-            gait_speed = stride_length / (2 * step_time) if step_time > 0 else 0
-            return [
-                f"{cadence:.2f} steps/min", f"{step_time:.2f} s", f"{mean_step_length:.2f} m",
-                f"{stride_length:.2f} m", f"{gait_speed:.2f} m/s"
-            ]
+        def mean_stride(peaks, x):
+            strides = [np.abs(x[peaks[i + 1]] - x[peaks[i]]) for i in range(len(peaks) - 1)]
+            return np.mean(strides) if strides else 0
 
-        st.subheader("📊 Gait Characteristics (Left & Right)")
-        metrics_df = pd.DataFrame({
-            "Metric": ["Cadence", "Step Time", "Step Length", "Stride Length", "Gait Speed"],
-            "Left Leg": gait_stats(peaks_left, foot_dists_left, "Left"),
-            "Right Leg": gait_stats(peaks_right, foot_dists_right, "Right")
+        left_stride = mean_stride(left_peaks, rd["left_heel_x"])
+        right_stride = mean_stride(right_peaks, rd["right_heel_x"])
+        left_speed = left_stride / (duration / len(left_peaks)) if len(left_peaks) > 0 else 0
+        right_speed = right_stride / (duration / len(right_peaks)) if len(right_peaks) > 0 else 0
+
+        st.subheader("👟 Stride Characteristics per Leg")
+        df = pd.DataFrame({
+            "Leg": ["Left", "Right"],
+            "Stride Length (m)": [f"{left_stride:.2f}", f"{right_stride:.2f}"],
+            "Stride Speed (m/s)": [f"{left_speed:.2f}", f"{right_speed:.2f}"]
         })
-        st.dataframe(metrics_df, use_container_width=True)
+        st.dataframe(df, use_container_width=True)
 
         st.subheader("🦵 Joint ROM (Degrees)")
         for joint, angles in rd["angles"].items():
             if angles:
                 rom = max(angles) - min(angles)
                 st.markdown(f"- **{joint.replace('_', ' ').title()} ROM:** `{rom:.2f}°`")
+
+        st.subheader("📈 Heel Strike Detection")
+        fig, ax = plt.subplots()
+        ax.plot(rd["left_heel_y"], label='Left Heel Y')
+        ax.plot(left_peaks, np.array(rd["left_heel_y"])[left_peaks], "rx", label='Left HS')
+        ax.plot(rd["right_heel_y"], label='Right Heel Y')
+        ax.plot(right_peaks, np.array(rd["right_heel_y"])[right_peaks], "bx", label='Right HS')
+        ax.set_title("Heel Strike Events")
+        ax.set_xlabel("Frame")
+        ax.set_ylabel("Y Position")
+        ax.legend()
+        st.pyplot(fig)
 
         st.info(f"📄 CSV: `{rd['csv_path']}`\n🎥 Video: `{rd['video_path']}`")
