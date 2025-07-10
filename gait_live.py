@@ -76,11 +76,9 @@ def run_live_gait_analysis():
                 "video_path": None,
                 "fps": 30
             }
-            st.rerun()
     else:
         if st.button("⏹️ Stop Recording", type="primary"):
             st.session_state.recording = False
-            st.rerun()
 
     # Initialize MediaPipe
     mp_pose = mp.solutions.pose
@@ -122,10 +120,13 @@ def run_live_gait_analysis():
         # Draw landmarks if detected
         if result.pose_landmarks:
             mp_drawing.draw_landmarks(
-                frame, result.pose_landmarks, mp_pose.POSE_CONNECTIONS,
+                frame, 
+                result.pose_landmarks, 
+                mp_pose.POSE_CONNECTIONS,
                 mp.solutions.drawing_utils.DrawingSpec(color=(245,117,66), thickness=2, circle_radius=2),
                 mp.solutions.drawing_utils.DrawingSpec(color=(245,66,230), thickness=2, circle_radius=2)
             )
+        
         # Show frame
         frame_display.image(frame, channels="BGR", use_container_width=True)
 
@@ -186,15 +187,15 @@ def run_live_gait_analysis():
 
                 rd["frame_count"] += 1
 
-        # Break loop if not in Streamlit context
-        if not st.session_state.get('_runtime').is_active():
+        # Break loop when recording is stopped
+        if not st.session_state.recording and rd.get("frame_count", 0) > 0:
             break
 
     # Release resources
     cap.release()
     pose.close()
 
-    # Save data if recording was stopped
+    # Save data and show results if recording was done
     if not st.session_state.recording and st.session_state.recorded_data["frame_count"] > 0:
         save_recording_data()
         display_gait_analysis_results()
@@ -204,10 +205,6 @@ def save_recording_data():
     rd = st.session_state.recorded_data
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     os.makedirs("outputs", exist_ok=True)
-    
-    # Save video (would need to implement this properly with actual frames)
-    video_file = f"outputs/gait_live_{timestamp}.mp4"
-    # In a real implementation, you'd save the actual frames here
     
     # Save CSV data
     csv_file = f"outputs/gait_live_{timestamp}.csv"
@@ -235,7 +232,6 @@ def save_recording_data():
             writer.writerow(row)
     
     rd["csv_path"] = csv_file
-    rd["video_path"] = video_file
 
 def display_gait_analysis_results():
     """Display all gait analysis results after recording"""
@@ -340,4 +336,3 @@ def display_gait_analysis_results():
     st.markdown("---")
     st.subheader("📁 Output Files")
     st.text(f"CSV data file: {rd['csv_path']}")
-    st.text(f"Video file: {rd['video_path']}")
