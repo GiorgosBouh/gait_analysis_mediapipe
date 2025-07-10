@@ -11,7 +11,6 @@ import matplotlib.pyplot as plt
 from scipy.signal import find_peaks
 from math import acos, degrees
 
-
 def calculate_angle(a, b, c):
     a = np.array([a.x, a.y, a.z])
     b = np.array([b.x, b.y, b.z])
@@ -21,7 +20,6 @@ def calculate_angle(a, b, c):
     cosine_angle = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc))
     angle = degrees(acos(np.clip(cosine_angle, -1.0, 1.0)))
     return angle
-
 
 def run_live_gait_analysis():
     st.title("🎥 Live Gait Camera Preview")
@@ -50,31 +48,6 @@ def run_live_gait_analysis():
 
     zoom = st.slider("Zoom level (simulated crop)", 1.0, 2.0, 1.0, step=0.1)
 
-    col1, col2 = st.columns(2)
-    with col1:
-        if not st.session_state.recording:
-            if st.button("▶️ Start Recording"):
-                st.session_state.recording = True
-                st.session_state.recorded_data = {
-                    "left_xs": [], "left_ys": [],
-                    "right_xs": [], "right_ys": [],
-                    "joints": {k: [] for k in st.session_state.recorded_data["joints"]},
-                    "angles": {k: [] for k in st.session_state.recorded_data["angles"]},
-                    "frame_idx": 0,
-                    "csv_path": None,
-                    "video_path": None
-                }
-    with col2:
-        if st.session_state.recording:
-            if st.button("⏹️ Stop Recording"):
-                st.session_state.recording = False
-
-    # MediaPipe setup
-    mp_pose = mp.solutions.pose
-    pose = mp_pose.Pose()
-    mp_drawing = mp.solutions.drawing_utils
-
-    # Always open and preview camera frame
     cap = cv2.VideoCapture(0)
     if not cap.isOpened():
         st.error("❌ Cannot open webcam. Make sure it is connected and accessible.")
@@ -83,6 +56,11 @@ def run_live_gait_analysis():
     width, height = int(cap.get(3)), int(cap.get(4))
     frame_display = st.empty()
 
+    mp_pose = mp.solutions.pose
+    pose = mp_pose.Pose()
+    mp_drawing = mp.solutions.drawing_utils
+
+    # Show live camera before recording
     ret, frame = cap.read()
     if ret:
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -91,7 +69,17 @@ def run_live_gait_analysis():
             mp_drawing.draw_landmarks(frame, result.pose_landmarks, mp_pose.POSE_CONNECTIONS)
         frame_display.image(frame, channels="BGR", use_container_width=True)
 
-    # If recording starts
+    col1, col2 = st.columns(2)
+    with col1:
+        if not st.session_state.recording:
+            if st.button("▶️ Start Recording"):
+                st.session_state.recording = True
+                st.rerun()
+    with col2:
+        if st.session_state.recording:
+            if st.button("⏹️ Stop Recording"):
+                st.session_state.recording = False
+
     if st.session_state.recording:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         os.makedirs("outputs", exist_ok=True)
@@ -127,12 +115,10 @@ def run_live_gait_analysis():
                 out.write(frame)
 
                 if result.pose_landmarks:
-                    row = [st.session_state.recorded_data["frame_idx"]]
-                    for lm in result.pose_landmarks.landmark:
-                        row.extend([lm.x, lm.y, lm.z, lm.visibility])
+                    lm = result.pose_landmarks.landmark
+                    row = [st.session_state.recorded_data["frame_idx"]] + [v for l in lm for v in [l.x, l.y, l.z, l.visibility]]
                     csv_writer.writerow(row)
 
-                    lm = result.pose_landmarks.landmark
                     st.session_state.recorded_data["left_xs"].append(lm[mp_pose.PoseLandmark.LEFT_FOOT_INDEX].x)
                     st.session_state.recorded_data["left_ys"].append(lm[mp_pose.PoseLandmark.LEFT_FOOT_INDEX].y)
                     st.session_state.recorded_data["right_xs"].append(lm[mp_pose.PoseLandmark.RIGHT_FOOT_INDEX].x)
@@ -151,6 +137,18 @@ def run_live_gait_analysis():
                     st.session_state.recorded_data["angles"]["right_knee"].append(
                         calculate_angle(lm[mp_pose.PoseLandmark.RIGHT_HIP], lm[mp_pose.PoseLandmark.RIGHT_KNEE], lm[mp_pose.PoseLandmark.RIGHT_ANKLE])
                     )
+                    st.session_state.recorded_data["angles"]["left_hip"].append(
+                        calculate_angle(lm[mp_pose.PoseLandmark.LEFT_SHOULDER], lm[mp_pose.PoseLandmark.LEFT_HIP], lm[mp_pose.PoseLandmark.LEFT_KNEE])
+                    )
+                    st.session_state.recorded_data["angles"]["right_hip"].append(
+                        calculate_angle(lm[mp_pose.PoseLandmark.RIGHT_SHOULDER], lm[mp_pose.PoseLandmark.RIGHT_HIP], lm[mp_pose.PoseLandmark.RIGHT_KNEE])
+                    )
+                    st.session_state.recorded_data["angles"]["left_ankle"].append(
+                        calculate_angle(lm[mp_pose.PoseLandmark.LEFT_KNEE], lm[mp_pose.PoseLandmark.LEFT_ANKLE], lm[mp_pose.PoseLandmark.LEFT_HEEL])
+                    )
+                    st.session_state.recorded_data["angles"]["right_ankle"].append(
+                        calculate_angle(lm[mp_pose.PoseLandmark.RIGHT_KNEE], lm[mp_pose.PoseLandmark.RIGHT_ANKLE], lm[mp_pose.PoseLandmark.RIGHT_HEEL])
+                    )
 
                     st.session_state.recorded_data["frame_idx"] += 1
 
@@ -161,5 +159,3 @@ def run_live_gait_analysis():
         st.session_state.recorded_data["csv_path"] = csv_file_path
         st.session_state.recorded_data["video_path"] = video_file
         st.success("✅ Recording complete. Gait features will now be shown below.")
-    else:
-        cap.release()
