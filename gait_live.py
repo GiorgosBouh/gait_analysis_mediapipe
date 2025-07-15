@@ -90,7 +90,7 @@ def run_live_gait_analysis():
             video_file = f"outputs/gait_live_{timestamp}.mp4"
             
             # Initialize video writer
-            cap = cv2.VideoCapture(1)
+            cap = cv2.VideoCapture(0)
             width, height = int(cap.get(3)), int(cap.get(4))
             cap.release()
             
@@ -120,7 +120,7 @@ def run_live_gait_analysis():
     mp_drawing = mp.solutions.drawing_utils
 
     # Camera setup
-    cap = cv2.VideoCapture(1)
+    cap = cv2.VideoCapture(0)
     if not cap.isOpened():
         st.error("❌ Cannot open webcam. Make sure it is connected and accessible.")
         return
