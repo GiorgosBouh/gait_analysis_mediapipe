@@ -16,99 +16,47 @@ PLOT_WIDTH = 12
 PLOT_HEIGHT = 6
 SMOOTH_WINDOW = 5  # for smoothing angle data
 
+def calculate_angle(a, b, c):
+    """Calculate 3D angle between three points"""
+    a = np.array([a.x, a.y, a.z])
+    b = np.array([b.x, b.y, b.z])
+    c = np.array([c.x, c.y, c.z])
+    ba = a - b
+    bc = c - b
+    cosine_angle = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc))
+    angle = degrees(acos(np.clip(cosine_angle, -1.0, 1.0)))
+    return angle
+
 def smooth_data(data, window_size=SMOOTH_WINDOW):
     """Apply simple moving average smoothing"""
     return savgol_filter(data, window_size, 2) if len(data) > window_size else data
-
-def calculate_knee_angle(a, b, c):
-    """Calculate knee angle with 0° as straight leg (180° in conventional terms)"""
-    a = np.array([a.x, a.y, a.z])
-    b = np.array([b.x, b.y, b.z])
-    c = np.array([c.x, c.y, c.z])
-    ba = a - b
-    bc = c - b
-    
-    cosine_angle = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc))
-    angle = 180 - degrees(acos(np.clip(cosine_angle, -1.0, 1.0)))  # Convert to conventional measurement
-    
-    return angle
-
-def calculate_ankle_angle(heel, ankle, toe):
-    """Calculate ankle angle with proper sign (0° when foot is perpendicular to shank)"""
-    heel = np.array([heel.x, heel.y, heel.z])
-    ankle = np.array([ankle.x, ankle.y, ankle.z])
-    toe = np.array([toe.x, toe.y, toe.z])
-    
-    # Vectors
-    foot_vector = toe - heel
-    shank_vector = ankle - heel
-    
-    # Calculate angle (90° when foot is perpendicular to shank)
-    cosine_angle = np.dot(shank_vector, foot_vector) / (np.linalg.norm(shank_vector) * np.linalg.norm(foot_vector))
-    angle = 90 - degrees(acos(np.clip(cosine_angle, -1.0, 1.0)))  # Convert to conventional measurement
-    
-    # Determine direction (negative for plantar flexion)
-    cross = np.cross(shank_vector, foot_vector)
-    if cross[2] < 0:
-        angle = -angle
-    
-    return angle
-
-def calculate_hip_angle(a, b, c):
-    """Calculate hip angle in conventional terms (0° when standing straight)"""
-    a = np.array([a.x, a.y, a.z])
-    b = np.array([b.x, b.y, b.z])
-    c = np.array([c.x, c.y, c.z])
-    ba = a - b
-    bc = c - b
-    
-    cosine_angle = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc))
-    angle = degrees(acos(np.clip(cosine_angle, -1.0, 1.0)))
-    
-    return angle
 
 def detect_gait_phases(foot_distances, prominence=0.05):
     """Detect gait phases (stance/swing) from foot distances"""
     peaks, _ = find_peaks(foot_distances, prominence=prominence)
     valleys, _ = find_peaks(-foot_distances, prominence=prominence)
     
+    # Create gait phase segments
     phases = []
     for i in range(len(peaks) - 1):
         start = peaks[i]
-        end = peaks[i + 1]
-
-        if len(valleys) > 0:
-            # Βρίσκουμε τη valley που είναι ανάμεσα στα δύο peaks
-            mid_candidates = valleys[(valleys > start) & (valleys < end)]
-            if len(mid_candidates) > 0:
-                mid = mid_candidates[0]
-            else:
-                mid = (start + end) // 2  # fallback
-        else:
-            mid = (start + end) // 2
-
-        phases.append(('stance', start, mid))
-        phases.append(('swing', mid, end))
-
+        # Find the first valley between two peaks
+        mid_indices = np.where((valleys > peaks[i]) & (valleys < peaks[i + 1]))[0]
+        if len(mid_indices) > 0:
+            mid = valleys[mid_indices[0]]
+            end = peaks[i + 1]
+            phases.append(('stance', start, mid))
+            phases.append(('swing', mid, end))
     return phases
 
 def run_live_gait_analysis():
-    st.title("🎥 Live Gait Analysis with Calibration")
-    
-    # CALIBRATION STEP
-    if "user_height" not in st.session_state:
-        col1, col2 = st.columns(2)
-        with col1:
-            height = st.number_input("Enter your height (cm):", min_value=100, max_value=250, value=170)
-        with col2:
-            if st.button("Set Height"):
-                st.session_state.user_height = height
-                st.success(f"Height set to {height} cm")
-                st.session_state.height_set = True
-    
-    if "user_height" not in st.session_state:
-        st.warning("Please enter your height to begin")
-        return
+    st.title("🎥 Live Gait Analysis")
+    st.markdown("""
+    **Instructions:**
+    1. Position yourself in the camera view
+    2. Press **Start Recording** and walk naturally
+    3. Press **Stop Recording** when finished
+    """)
 
     # Initialize session state
     if "recording" not in st.session_state:
@@ -244,46 +192,36 @@ def run_live_gait_analysis():
                     ])
 
                 # Calculate and store joint angles
-                left_knee_angle = calculate_knee_angle(
-                    lm[mp_pose.PoseLandmark.LEFT_HIP],
-                    lm[mp_pose.PoseLandmark.LEFT_KNEE],
-                    lm[mp_pose.PoseLandmark.LEFT_ANKLE]
+                rd["joint_angles"]["left_knee"].append(
+                    calculate_angle(lm[mp_pose.PoseLandmark.LEFT_HIP], 
+                                  lm[mp_pose.PoseLandmark.LEFT_KNEE], 
+                                  lm[mp_pose.PoseLandmark.LEFT_ANKLE])
                 )
-                right_knee_angle = calculate_knee_angle(
-                    lm[mp_pose.PoseLandmark.RIGHT_HIP],
-                    lm[mp_pose.PoseLandmark.RIGHT_KNEE],
-                    lm[mp_pose.PoseLandmark.RIGHT_ANKLE]
+                rd["joint_angles"]["right_knee"].append(
+                    calculate_angle(lm[mp_pose.PoseLandmark.RIGHT_HIP], 
+                                   lm[mp_pose.PoseLandmark.RIGHT_KNEE], 
+                                   lm[mp_pose.PoseLandmark.RIGHT_ANKLE])
                 )
-                
-                left_ankle_angle = calculate_ankle_angle(
-                    lm[mp_pose.PoseLandmark.LEFT_HEEL],
-                    lm[mp_pose.PoseLandmark.LEFT_ANKLE],
-                    lm[mp_pose.PoseLandmark.LEFT_FOOT_INDEX]
+                rd["joint_angles"]["left_hip"].append(
+                    calculate_angle(lm[mp_pose.PoseLandmark.LEFT_SHOULDER], 
+                                  lm[mp_pose.PoseLandmark.LEFT_HIP], 
+                                  lm[mp_pose.PoseLandmark.LEFT_KNEE])
                 )
-                right_ankle_angle = calculate_ankle_angle(
-                    lm[mp_pose.PoseLandmark.RIGHT_HEEL],
-                    lm[mp_pose.PoseLandmark.RIGHT_ANKLE],
-                    lm[mp_pose.PoseLandmark.RIGHT_FOOT_INDEX]
+                rd["joint_angles"]["right_hip"].append(
+                    calculate_angle(lm[mp_pose.PoseLandmark.RIGHT_SHOULDER], 
+                                  lm[mp_pose.PoseLandmark.RIGHT_HIP], 
+                                  lm[mp_pose.PoseLandmark.RIGHT_KNEE])
                 )
-                
-                left_hip_angle = calculate_hip_angle(
-                    lm[mp_pose.PoseLandmark.LEFT_SHOULDER],
-                    lm[mp_pose.PoseLandmark.LEFT_HIP],
-                    lm[mp_pose.PoseLandmark.LEFT_KNEE]
+                rd["joint_angles"]["left_ankle"].append(
+                    calculate_angle(lm[mp_pose.PoseLandmark.LEFT_KNEE], 
+                                  lm[mp_pose.PoseLandmark.LEFT_ANKLE], 
+                                  lm[mp_pose.PoseLandmark.LEFT_HEEL])
                 )
-                right_hip_angle = calculate_hip_angle(
-                    lm[mp_pose.PoseLandmark.RIGHT_SHOULDER],
-                    lm[mp_pose.PoseLandmark.RIGHT_HIP],
-                    lm[mp_pose.PoseLandmark.RIGHT_KNEE]
+                rd["joint_angles"]["right_ankle"].append(
+                    calculate_angle(lm[mp_pose.PoseLandmark.RIGHT_KNEE], 
+                                   lm[mp_pose.PoseLandmark.RIGHT_ANKLE], 
+                                   lm[mp_pose.PoseLandmark.RIGHT_HEEL])
                 )
-                
-                # Store angles
-                rd["joint_angles"]["left_knee"].append(left_knee_angle)
-                rd["joint_angles"]["right_knee"].append(right_knee_angle)
-                rd["joint_angles"]["left_ankle"].append(left_ankle_angle)
-                rd["joint_angles"]["right_ankle"].append(right_ankle_angle)
-                rd["joint_angles"]["left_hip"].append(left_hip_angle)
-                rd["joint_angles"]["right_hip"].append(right_hip_angle)
 
                 rd["frame_count"] += 1
 
@@ -348,16 +286,20 @@ def display_gait_analysis_results():
     peaks, _ = find_peaks(foot_dists, prominence=0.05)
     num_steps = len(peaks)
     
-    # Calculate mean angles for each gait phase
-    phase_metrics = defaultdict(dict)
+    # Calculate ROM for each gait phase
+    phase_rom = defaultdict(list)
     for phase in gait_phases:
         phase_name, start, end = phase
         for joint, angles in rd["joint_angles"].items():
             phase_angles = angles[start:end]
             if phase_angles:
-                phase_metrics[phase_name][f"{joint}_mean"] = np.mean(phase_angles)
-                phase_metrics[phase_name][f"{joint}_min"] = min(phase_angles)
-                phase_metrics[phase_name][f"{joint}_max"] = max(phase_angles)
+                rom = max(phase_angles) - min(phase_angles)
+                phase_rom[f"{joint}_{phase_name}"].append(rom)
+    
+    # Calculate mean ROM per phase
+    mean_phase_rom = {}
+    for key, values in phase_rom.items():
+        mean_phase_rom[key] = np.mean(values) if values else 0
     
     # Gait metrics - separate for left and right
     cadence = (num_steps / duration) * 60 if duration > 0 else 0
@@ -376,47 +318,34 @@ def display_gait_analysis_results():
     mean_step_width = np.mean(np.abs(left_foot_y - right_foot_y))
     gait_speed = (left_stride_length + right_stride_length) / (4 * step_time) if step_time > 0 else 0
     
-    # Convert normalized values to cm using the height
-    height_cm = st.session_state.user_height
-    norm_to_cm = height_cm / 100  # Conversion factor based on average proportions
-    
-    # Display metrics in real units
-    st.subheader("📊 Gait Characteristics (Real Units)")
+    # Display metrics
+    st.subheader("📊 Gait Characteristics")
     metrics = {
         "Recording Duration": f"{duration:.2f} s",
-        "Number of Steps": f"{num_steps}",
+        "Number of Steps": f"{num_steps} ({len(left_step_lengths)} left, {len(right_step_lengths)} right)",
         "Cadence": f"{cadence:.2f} steps/min",
         "Step Time": f"{step_time:.2f} s",
-        "Left Step Length": f"{left_mean_step_length * norm_to_cm:.1f} cm",
-        "Right Step Length": f"{right_mean_step_length * norm_to_cm:.1f} cm", 
-        "Left Stride Length": f"{left_stride_length * norm_to_cm:.1f} cm",
-        "Right Stride Length": f"{right_stride_length * norm_to_cm:.1f} cm",
-        "Step Width": f"{mean_step_width * norm_to_cm:.1f} cm",
-        "Gait Speed": f"{gait_speed * norm_to_cm:.2f} cm/s"
+        "Left Step Length": f"{left_mean_step_length:.2f} (normalized)",
+        "Right Step Length": f"{right_mean_step_length:.2f} (normalized)",
+        "Left Stride Length": f"{left_stride_length:.2f} (normalized)",
+        "Right Stride Length": f"{right_stride_length:.2f} (normalized)",
+        "Step Width": f"{mean_step_width:.2f} (normalized)",
+        "Gait Speed": f"{gait_speed:.2f} (normalized units/s)"
     }
     
     st.table(pd.DataFrame.from_dict(metrics, orient='index', columns=['Value']))
     
-    # Joint angles by phase
-    st.subheader("🦵 Joint Angles by Gait Phase")
-    
-    # Create phase comparison data
-    phase_comparison = []
-    for joint in ['left_knee', 'right_knee', 'left_ankle', 'right_ankle', 'left_hip', 'right_hip']:
-        stance_mean = phase_metrics['stance'].get(f"{joint}_mean", 0)
-        swing_mean = phase_metrics['swing'].get(f"{joint}_mean", 0)
-        
-        phase_comparison.append({
+    # Joint ROM by phase
+    st.subheader("🦵 Joint Range of Motion (ROM) by Gait Phase")
+    rom_data = []
+    for joint in rd["joint_angles"].keys():
+        rom_data.append({
             "Joint": joint.replace('_', ' ').title(),
-            "Stance Mean (°)": f"{stance_mean:.1f}",
-            "Swing Mean (°)": f"{swing_mean:.1f}",
-            "Stance Min (°)": f"{phase_metrics['stance'].get(f'{joint}_min', 0):.1f}",
-            "Stance Max (°)": f"{phase_metrics['stance'].get(f'{joint}_max', 0):.1f}",
-            "Swing Min (°)": f"{phase_metrics['swing'].get(f'{joint}_min', 0):.1f}",
-            "Swing Max (°)": f"{phase_metrics['swing'].get(f'{joint}_max', 0):.1f}"
+            "Stance ROM (°)": f"{mean_phase_rom.get(f'{joint}_stance', 0):.1f}",
+            "Swing ROM (°)": f"{mean_phase_rom.get(f'{joint}_swing', 0):.1f}",
+            "Total ROM (°)": f"{max(rd['joint_angles'][joint]) - min(rd['joint_angles'][joint]):.1f}"
         })
-    
-    st.table(pd.DataFrame(phase_comparison))
+    st.table(pd.DataFrame(rom_data))
     
     # Visualization section
     st.subheader("📈 Gait Visualizations")
@@ -426,12 +355,11 @@ def display_gait_analysis_results():
     ax.plot(foot_dists, label='Foot Distance')
     ax.plot(peaks, foot_dists[peaks], "rx", label='Detected Steps')
     
-    # Color gait phases (green for stance, blue for swing)
+    # Color gait phases
     for phase in gait_phases:
         phase_name, start, end = phase
         color = 'lightgreen' if phase_name == 'stance' else 'lightblue'
-        label = 'Stance Phase' if phase_name == 'stance' and start == 0 else 'Swing Phase' if start == 0 else ""
-        ax.axvspan(start, end, color=color, alpha=0.3, label=label)
+        ax.axvspan(start, end, color=color, alpha=0.3, label=f'{phase_name.capitalize()} Phase' if start == 0 else "")
     
     ax.set_title("Step Detection with Gait Phases")
     ax.set_xlabel("Frame")
@@ -440,16 +368,14 @@ def display_gait_analysis_results():
     st.pyplot(fig)
     
     # Joint angles plots with gait phases
-    fig, axes = plt.subplots(3, 2, figsize=(PLOT_WIDTH, PLOT_HEIGHT*3))
+    fig, axes = plt.subplots(2, 2, figsize=(PLOT_WIDTH, PLOT_HEIGHT*2))
     axes = axes.flatten()
     
     for i, (joint, angles) in enumerate(rd["joint_angles"].items()):
         if i >= len(axes):
             break
-        
-        # Smooth angles for better visualization
         smoothed = smooth_data(angles)
-        axes[i].plot(smoothed, label='Joint Angle')
+        axes[i].plot(smoothed, label='Angle')
         
         # Mark gait phases
         for phase in gait_phases:
@@ -457,19 +383,9 @@ def display_gait_analysis_results():
             color = 'green' if phase_name == 'stance' else 'blue'
             axes[i].axvspan(start, end, color=color, alpha=0.1)
         
-        # Add horizontal line at 0° for reference
-        axes[i].axhline(0, color='gray', linestyle='--', alpha=0.5)
-        
-        # Special formatting for ankle angles
-        if 'ankle' in joint:
-            axes[i].axhline(0, color='red', linestyle='-', alpha=0.3, label='Neutral Position')
-            axes[i].set_ylabel("Angle (°)\n(Negative = Plantar Flexion)")
-        else:
-            axes[i].set_ylabel("Angle (°)")
-        
         axes[i].set_title(f"{joint.replace('_', ' ').title()} Angle")
         axes[i].set_xlabel("Frame")
-        axes[i].legend()
+        axes[i].set_ylabel("Angle (°)")
     
     plt.tight_layout()
     st.pyplot(fig)
