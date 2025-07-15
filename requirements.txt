@@ -1,8 +1,7 @@
 streamlit
-streamlit-webrtc
 opencv-python
 mediapipe
-numpy
-pandas
-matplotlib
 scipy
+matplotlib
+pandas
+numpy
