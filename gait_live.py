@@ -10,6 +10,9 @@ import matplotlib.pyplot as plt
 from scipy.signal import find_peaks, savgol_filter
 from math import acos, degrees
 from collections import defaultdict
+import threading
+import queue
+import time
 
 # Constants
 PLOT_WIDTH = 12
@@ -61,6 +64,8 @@ def run_live_gait_analysis():
     # Initialize session state
     if "recording" not in st.session_state:
         st.session_state.recording = False
+    if "camera_active" not in st.session_state:
+        st.session_state.camera_active = False
     if "recorded_data" not in st.session_state:
         st.session_state.recorded_data = {
             "left_foot": {"x": [], "y": [], "z": []},
@@ -82,159 +87,189 @@ def run_live_gait_analysis():
         mirror = st.checkbox("Mirror view", True)
 
     # Recording controls
-    if not st.session_state.recording:
-        if st.button("▶️ Start Recording", type="primary"):
-            st.session_state.recording = True
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            os.makedirs("outputs", exist_ok=True)
-            video_file = f"outputs/gait_live_{timestamp}.mp4"
-            
-            # Initialize video writer
-            cap = cv2.VideoCapture(0)
-            width, height = int(cap.get(3)), int(cap.get(4))
-            cap.release()
-            
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if not st.session_state.camera_active:
+            if st.button("📷 Start Camera", type="primary"):
+                st.session_state.camera_active = True
+                st.rerun()
+        else:
+            if st.button("📷 Stop Camera"):
+                st.session_state.camera_active = False
+                st.session_state.recording = False
+                st.rerun()
+    
+    with col2:
+        if st.session_state.camera_active and not st.session_state.recording:
+            if st.button("▶️ Start Recording", type="primary"):
+                st.session_state.recording = True
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                os.makedirs("outputs", exist_ok=True)
+                video_file = f"outputs/gait_live_{timestamp}.mp4"
+                
+                st.session_state.recorded_data.update({
+                    "left_foot": {"x": [], "y": [], "z": []},
+                    "right_foot": {"x": [], "y": [], "z": []},
+                    "joint_positions": defaultdict(list),
+                    "joint_angles": defaultdict(list),
+                    "frame_count": 0,
+                    "csv_path": f"outputs/gait_live_{timestamp}.csv",
+                    "video_path": video_file,
+                    "fps": 30
+                })
+                st.rerun()
+    
+    with col3:
+        if st.session_state.recording:
+            if st.button("⏹️ Stop Recording", type="primary"):
+                st.session_state.recording = False
+                st.session_state.camera_active = False
+                st.rerun()
+
+    # Show camera feed if active
+    if st.session_state.camera_active:
+        # Create placeholders
+        frame_display = st.empty()
+        status_text = st.empty()
+        
+        if st.session_state.recording:
+            status_text.info("🔴 Recording in progress...")
+        else:
+            status_text.info("📷 Camera active - Press Start Recording when ready")
+        
+        # Initialize MediaPipe
+        mp_pose = mp.solutions.pose
+        pose = mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)
+        mp_drawing = mp.solutions.drawing_utils
+        
+        # Camera setup
+        cap = cv2.VideoCapture(0)
+        if not cap.isOpened():
+            st.error("❌ Cannot open webcam. Make sure it is connected and accessible.")
+            return
+        
+        width, height = int(cap.get(3)), int(cap.get(4))
+        
+        # Initialize video writer if recording
+        if st.session_state.recording and st.session_state.recorded_data["video_writer"] is None:
             fourcc = cv2.VideoWriter_fourcc(*'mp4v')
             st.session_state.recorded_data["video_writer"] = cv2.VideoWriter(
-                video_file, fourcc, 30.0, (width, height))
-            st.session_state.recorded_data["video_path"] = video_file
-            
-            st.session_state.recorded_data.update({
-                "left_foot": {"x": [], "y": [], "z": []},
-                "right_foot": {"x": [], "y": [], "z": []},
-                "joint_positions": defaultdict(list),
-                "joint_angles": defaultdict(list),
-                "frame_count": 0,
-                "csv_path": f"outputs/gait_live_{timestamp}.csv",
-                "fps": 30
-            })
-    else:
-        if st.button("⏹️ Stop Recording", type="primary"):
-            st.session_state.recording = False
-            if st.session_state.recorded_data["video_writer"] is not None:
-                st.session_state.recorded_data["video_writer"].release()
-
-    # Initialize MediaPipe
-    mp_pose = mp.solutions.pose
-    pose = mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)
-    mp_drawing = mp.solutions.drawing_utils
-
-    # Camera setup
-    cap = cv2.VideoCapture(0)
-    if not cap.isOpened():
-        st.error("❌ Cannot open webcam. Make sure it is connected and accessible.")
-        return
-
-    width, height = int(cap.get(3)), int(cap.get(4))
-    frame_display = st.empty()
-
-    # Main processing loop
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            st.warning("⚠️ Couldn't read frame from camera")
-            break
-
-        # Apply mirror effect if enabled
-        if mirror:
-            frame = cv2.flip(frame, 1)
-
-        # Apply zoom if needed
-        if zoom > 1.0:
-            center_x, center_y = width // 2, height // 2
-            new_w, new_h = int(width / zoom), int(height / zoom)
-            left, top = center_x - new_w // 2, center_y - new_h // 2
-            frame = frame[top:top + new_h, left:left + new_w]
-            frame = cv2.resize(frame, (width, height))
-
-        # Process frame with MediaPipe
-        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        result = pose.process(rgb)
-
-        # Draw landmarks if detected
-        if result.pose_landmarks:
-            mp_drawing.draw_landmarks(
-                frame, 
-                result.pose_landmarks, 
-                mp_pose.POSE_CONNECTIONS,
-                mp.solutions.drawing_utils.DrawingSpec(color=(245,117,66), thickness=2, circle_radius=2),
-                mp.solutions.drawing_utils.DrawingSpec(color=(245,66,230), thickness=2, circle_radius=2)
-            )
+                st.session_state.recorded_data["video_path"], fourcc, 30.0, (width, height))
         
-        # Show frame
-        frame_display.image(frame, channels="BGR", use_container_width=True)
-
-        # Recording logic
-        if st.session_state.recording:
-            # Write frame to video
-            if st.session_state.recorded_data["video_writer"] is not None:
-                st.session_state.recorded_data["video_writer"].write(frame)
+        # Process frames
+        frame_count = 0
+        while st.session_state.camera_active:
+            ret, frame = cap.read()
+            if not ret:
+                st.warning("⚠️ Couldn't read frame from camera")
+                break
             
+            # Apply mirror effect if enabled
+            if mirror:
+                frame = cv2.flip(frame, 1)
+            
+            # Apply zoom if needed
+            if zoom > 1.0:
+                center_x, center_y = width // 2, height // 2
+                new_w, new_h = int(width / zoom), int(height / zoom)
+                left, top = center_x - new_w // 2, center_y - new_h // 2
+                frame = frame[top:top + new_h, left:left + new_w]
+                frame = cv2.resize(frame, (width, height))
+            
+            # Process frame with MediaPipe
+            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            result = pose.process(rgb)
+            
+            # Draw landmarks if detected
             if result.pose_landmarks:
-                lm = result.pose_landmarks.landmark
-                rd = st.session_state.recorded_data
-
-                # Store foot positions
-                rd["left_foot"]["x"].append(lm[mp_pose.PoseLandmark.LEFT_FOOT_INDEX].x)
-                rd["left_foot"]["y"].append(lm[mp_pose.PoseLandmark.LEFT_FOOT_INDEX].y)
-                rd["left_foot"]["z"].append(lm[mp_pose.PoseLandmark.LEFT_FOOT_INDEX].z)
+                mp_drawing.draw_landmarks(
+                    frame, 
+                    result.pose_landmarks, 
+                    mp_pose.POSE_CONNECTIONS,
+                    mp.solutions.drawing_utils.DrawingSpec(color=(245,117,66), thickness=2, circle_radius=2),
+                    mp.solutions.drawing_utils.DrawingSpec(color=(245,66,230), thickness=2, circle_radius=2)
+                )
+            
+            # Show frame
+            frame_display.image(frame, channels="BGR", use_container_width=True)
+            
+            # Recording logic
+            if st.session_state.recording:
+                # Write frame to video
+                if st.session_state.recorded_data["video_writer"] is not None:
+                    st.session_state.recorded_data["video_writer"].write(frame)
                 
-                rd["right_foot"]["x"].append(lm[mp_pose.PoseLandmark.RIGHT_FOOT_INDEX].x)
-                rd["right_foot"]["y"].append(lm[mp_pose.PoseLandmark.RIGHT_FOOT_INDEX].y)
-                rd["right_foot"]["z"].append(lm[mp_pose.PoseLandmark.RIGHT_FOOT_INDEX].z)
-
-                # Store joint positions
-                for joint in ['LEFT_KNEE', 'RIGHT_KNEE', 'LEFT_HIP', 'RIGHT_HIP', 'LEFT_ANKLE', 'RIGHT_ANKLE']:
-                    rd["joint_positions"][joint].append([
-                        lm[mp_pose.PoseLandmark[joint]].x,
-                        lm[mp_pose.PoseLandmark[joint]].y,
-                        lm[mp_pose.PoseLandmark[joint]].z
-                    ])
-
-                # Calculate and store joint angles
-                rd["joint_angles"]["left_knee"].append(
-                    calculate_angle(lm[mp_pose.PoseLandmark.LEFT_HIP], 
-                                  lm[mp_pose.PoseLandmark.LEFT_KNEE], 
-                                  lm[mp_pose.PoseLandmark.LEFT_ANKLE])
-                )
-                rd["joint_angles"]["right_knee"].append(
-                    calculate_angle(lm[mp_pose.PoseLandmark.RIGHT_HIP], 
-                                   lm[mp_pose.PoseLandmark.RIGHT_KNEE], 
-                                   lm[mp_pose.PoseLandmark.RIGHT_ANKLE])
-                )
-                rd["joint_angles"]["left_hip"].append(
-                    calculate_angle(lm[mp_pose.PoseLandmark.LEFT_SHOULDER], 
-                                  lm[mp_pose.PoseLandmark.LEFT_HIP], 
-                                  lm[mp_pose.PoseLandmark.LEFT_KNEE])
-                )
-                rd["joint_angles"]["right_hip"].append(
-                    calculate_angle(lm[mp_pose.PoseLandmark.RIGHT_SHOULDER], 
-                                  lm[mp_pose.PoseLandmark.RIGHT_HIP], 
-                                  lm[mp_pose.PoseLandmark.RIGHT_KNEE])
-                )
-                rd["joint_angles"]["left_ankle"].append(
-                    calculate_angle(lm[mp_pose.PoseLandmark.LEFT_KNEE], 
-                                  lm[mp_pose.PoseLandmark.LEFT_ANKLE], 
-                                  lm[mp_pose.PoseLandmark.LEFT_HEEL])
-                )
-                rd["joint_angles"]["right_ankle"].append(
-                    calculate_angle(lm[mp_pose.PoseLandmark.RIGHT_KNEE], 
-                                   lm[mp_pose.PoseLandmark.RIGHT_ANKLE], 
-                                   lm[mp_pose.PoseLandmark.RIGHT_HEEL])
-                )
-
-                rd["frame_count"] += 1
-
-        # Break loop when recording is stopped and we have some frames
-        if not st.session_state.recording and st.session_state.recorded_data["frame_count"] > 0:
-            break
-
-    # Release resources
-    cap.release()
-    pose.close()
-
+                if result.pose_landmarks:
+                    lm = result.pose_landmarks.landmark
+                    rd = st.session_state.recorded_data
+                    
+                    # Store foot positions
+                    rd["left_foot"]["x"].append(lm[mp_pose.PoseLandmark.LEFT_FOOT_INDEX].x)
+                    rd["left_foot"]["y"].append(lm[mp_pose.PoseLandmark.LEFT_FOOT_INDEX].y)
+                    rd["left_foot"]["z"].append(lm[mp_pose.PoseLandmark.LEFT_FOOT_INDEX].z)
+                    
+                    rd["right_foot"]["x"].append(lm[mp_pose.PoseLandmark.RIGHT_FOOT_INDEX].x)
+                    rd["right_foot"]["y"].append(lm[mp_pose.PoseLandmark.RIGHT_FOOT_INDEX].y)
+                    rd["right_foot"]["z"].append(lm[mp_pose.PoseLandmark.RIGHT_FOOT_INDEX].z)
+                    
+                    # Store joint positions
+                    for joint in ['LEFT_KNEE', 'RIGHT_KNEE', 'LEFT_HIP', 'RIGHT_HIP', 'LEFT_ANKLE', 'RIGHT_ANKLE']:
+                        rd["joint_positions"][joint].append([
+                            lm[mp_pose.PoseLandmark[joint]].x,
+                            lm[mp_pose.PoseLandmark[joint]].y,
+                            lm[mp_pose.PoseLandmark[joint]].z
+                        ])
+                    
+                    # Calculate and store joint angles
+                    rd["joint_angles"]["left_knee"].append(
+                        calculate_angle(lm[mp_pose.PoseLandmark.LEFT_HIP], 
+                                      lm[mp_pose.PoseLandmark.LEFT_KNEE], 
+                                      lm[mp_pose.PoseLandmark.LEFT_ANKLE])
+                    )
+                    rd["joint_angles"]["right_knee"].append(
+                        calculate_angle(lm[mp_pose.PoseLandmark.RIGHT_HIP], 
+                                       lm[mp_pose.PoseLandmark.RIGHT_KNEE], 
+                                       lm[mp_pose.PoseLandmark.RIGHT_ANKLE])
+                    )
+                    rd["joint_angles"]["left_hip"].append(
+                        calculate_angle(lm[mp_pose.PoseLandmark.LEFT_SHOULDER], 
+                                      lm[mp_pose.PoseLandmark.LEFT_HIP], 
+                                      lm[mp_pose.PoseLandmark.LEFT_KNEE])
+                    )
+                    rd["joint_angles"]["right_hip"].append(
+                        calculate_angle(lm[mp_pose.PoseLandmark.RIGHT_SHOULDER], 
+                                      lm[mp_pose.PoseLandmark.RIGHT_HIP], 
+                                      lm[mp_pose.PoseLandmark.RIGHT_KNEE])
+                    )
+                    rd["joint_angles"]["left_ankle"].append(
+                        calculate_angle(lm[mp_pose.PoseLandmark.LEFT_KNEE], 
+                                      lm[mp_pose.PoseLandmark.LEFT_ANKLE], 
+                                      lm[mp_pose.PoseLandmark.LEFT_HEEL])
+                    )
+                    rd["joint_angles"]["right_ankle"].append(
+                        calculate_angle(lm[mp_pose.PoseLandmark.RIGHT_KNEE], 
+                                       lm[mp_pose.PoseLandmark.RIGHT_ANKLE], 
+                                       lm[mp_pose.PoseLandmark.RIGHT_HEEL])
+                    )
+                    
+                    rd["frame_count"] += 1
+            
+            # Update frame counter for refresh
+            frame_count += 1
+            if frame_count % 10 == 0:  # Refresh every 10 frames
+                time.sleep(0.001)  # Small delay to allow UI update
+        
+        # Release resources
+        cap.release()
+        pose.close()
+        
+        # Release video writer if it exists
+        if st.session_state.recorded_data["video_writer"] is not None:
+            st.session_state.recorded_data["video_writer"].release()
+            st.session_state.recorded_data["video_writer"] = None
+    
     # Save data and show results if recording was done
-    if not st.session_state.recording and st.session_state.recorded_data["frame_count"] > 0:
+    if not st.session_state.camera_active and st.session_state.recorded_data["frame_count"] > 0:
         save_recording_data()
         display_gait_analysis_results()
 
