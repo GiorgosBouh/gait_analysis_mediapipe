@@ -17,7 +17,14 @@ def run_video_gait_analysis(input_video_path):
     cap = cv2.VideoCapture(input_video_path)
     width, height = int(cap.get(3)), int(cap.get(4))
     fps = cap.get(cv2.CAP_PROP_FPS)
-    out = cv2.VideoWriter(out_video, cv2.VideoWriter_fourcc(*'mp4v'), fps, (width, height))
+    
+    # Use H.264 codec for better compatibility
+    fourcc = cv2.VideoWriter_fourcc(*'avc1')  # H.264 codec for Mac
+    # Alternative codecs if avc1 doesn't work:
+    # fourcc = cv2.VideoWriter_fourcc(*'h264')
+    # fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    # fourcc = cv2.VideoWriter_fourcc(*'XVID')
+    out = cv2.VideoWriter(out_video, fourcc, fps, (width, height))
 
     landmark_names = [l.name for l in mp_pose.PoseLandmark]
     header = ['frame'] + [f"{n}_{a}" for n in landmark_names for a in ['x', 'y', 'z', 'visibility']]
