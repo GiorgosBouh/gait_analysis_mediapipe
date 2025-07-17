@@ -152,7 +152,12 @@ def run_live_gait_analysis():
         
         # Initialize video writer if recording
         if st.session_state.recording and st.session_state.recorded_data["video_writer"] is None:
-            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+            # Use H.264 codec for better compatibility
+            fourcc = cv2.VideoWriter_fourcc(*'avc1')  # H.264 codec for Mac
+            # Alternative codecs if avc1 doesn't work:
+            # fourcc = cv2.VideoWriter_fourcc(*'h264')
+            # fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+            # fourcc = cv2.VideoWriter_fourcc(*'XVID')
             st.session_state.recorded_data["video_writer"] = cv2.VideoWriter(
                 st.session_state.recorded_data["video_path"], fourcc, 30.0, (width, height))
         
