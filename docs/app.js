@@ -4,7 +4,8 @@ import {
   POSE_LANDMARK_NAMES,
   POSE_CONNECTIONS,
   LANDMARK_INDEX,
-} from "./pose.js?v=20260201_1205";
+} from "./pose.js?v=FIX_FINAL";  // <--- ΑΛΛΑΞΕ ΑΥΤΟ ΕΔΩ
+
 import {
   clamp,
   median,
@@ -14,10 +15,11 @@ import {
   computeDtStats,
   ensureCanvasSize,
   computePeaks,
-} from "./utils.js?v=20260201_1205";
-import { LineChart } from "./charts.js?v=20260201_1205";
+} from "./utils.js?v=FIX_FINAL"; // <--- ΚΑΙ ΑΥΤΟ ΕΔΩ
 
-const BUILD_STAMP = "20260201_1205";
+import { LineChart } from "./charts.js?v=FIX_FINAL"; // <--- ΚΑΙ ΑΥΤΟ
+
+const BUILD_STAMP = "FIX_FINAL"; // <--- ΚΑΙ ΑΥΤΟ
 console.log(`APP.JS VERSION: ${BUILD_STAMP}`);
 
 const appState = {
