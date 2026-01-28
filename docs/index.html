@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BioGait 3D - Gold Master v4.2</title>
+  <title>BioGait 3D - Scientific v4.3</title>
 
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 
@@ -120,7 +120,7 @@
 
   <div class="app-container">
     <header class="header">
-      <h1>BioGait 3D <span style="font-size:0.7em; color:#64748b; margin-left:5px;">Gold Master v4.2</span></h1>
+      <h1>BioGait 3D <span style="font-size:0.7em; color:#64748b; margin-left:5px;">Gold Master v4.3</span></h1>
       <div id="statusBadge" class="status-badge">SYSTEM LOADING</div>
     </header>
 
@@ -342,15 +342,25 @@
       } catch (e) { alert("Camera Denied"); }
     });
 
-    els.btnVal.addEventListener('click', () => {
+    els.btnVal.addEventListener('click', async () => {
+      els.btnVal.disabled = true;
+      els.modalVal.style.display = 'flex';
+      
+      // Countdown for Validity Check
+      for(let i=3; i>0; i--) {
+        els.valResults.innerHTML = `<h1 style="text-align:center; font-size:4rem; color:#f59e0b; margin:20px 0;">${i}</h1><p style="text-align:center; color:#94a3b8;">Get Ready (T-Pose)</p>`;
+        await new Promise(r => setTimeout(r, 1000));
+      }
+
+      // Start Capture
       state.validationBuffer = [];
       state.validating = true;
-      els.modalVal.style.display = 'flex';
       els.valResults.innerHTML = '<p style="color:#38bdf8; text-align:center;">Capturing 5 seconds of data for stability check...<br>Please stand still in T-Pose.</p>';
       
       setTimeout(() => {
         state.validating = false;
         runValidationChecks();
+        els.btnVal.disabled = false;
       }, 5000);
     });
 
@@ -377,7 +387,6 @@
       const boneClass = cvFemur < 5 ? "pass" : "fail";
 
       // 3. Floor Contact (Lowest Y stability)
-      // Get max Y (lowest point) for each frame
       const lowestYs = data.map(d => Math.max(d[29].y, d[30].y));
       const meanLow = lowestYs.reduce((a,b)=>a+b,0)/lowestYs.length;
       const stdLow = Math.sqrt(lowestYs.map(x => Math.pow(x-meanLow,2)).reduce((a,b)=>a+b)/lowestYs.length);
@@ -579,7 +588,7 @@
         c = c.slice(0,-1) + "\n";
       });
       const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([c], {type:'text/csv'}));
-      a.download = `biogait_full_3d_${Date.now()}.csv`; a.click();
+      a.download = `biogait_v4_${Date.now()}.csv`; a.click();
     }
 
     init();
