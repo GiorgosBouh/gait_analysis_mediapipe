@@ -1,11 +1,9 @@
-// pose.js
-// Robust MediaPipe Pose loader for GitHub Pages
-// Fixes: GitHub Pages sometimes returns 0-byte body for .task via fetch()
-// Solution: prefer raw.githubusercontent.com for model fetch, keep Pages fallback.
+// pose.js (RAW-only, no Range, no GitHub Pages fetch)
+// Fixes: GitHub Pages fetch returns 0 bytes for .task, Range not supported (HTTP 416)
+// Solution: fetch the model from raw.githubusercontent.com and pass as modelAssetBuffer.
 
 import { PoseLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.9";
 
-// ---- Landmark names / indices ----
 export const POSE_LANDMARK_NAMES = [
   "nose",
   "left_eye_inner", "left_eye", "left_eye_outer",
@@ -29,7 +27,6 @@ export const LANDMARK_INDEX = Object.fromEntries(
   POSE_LANDMARK_NAMES.map((name, idx) => [name, idx])
 );
 
-// ---- Simple skeleton connections (name -> name) ----
 export const POSE_CONNECTIONS = [
   ["left_shoulder", "right_shoulder"],
   ["left_hip", "right_hip"],
@@ -51,73 +48,35 @@ export const POSE_CONNECTIONS = [
   ["nose", "right_shoulder"],
 ];
 
-// ---- Internal singleton ----
 let poseLandmarker = null;
 
-// ---- CONFIG: set your RAW model URL here ----
-// If your repo name is different, change only the <REPO> part.
+// ✅ Your repo is GAIT_ANALYSIS_MEDIAPIPE (case-sensitive)
 const RAW_MODEL_URL =
-  "https://raw.githubusercontent.com/giorgosbouh/gait_analysis_mediapipe/main/docs/models/pose_landmarker_lite.task";
+  "https://raw.githubusercontent.com/giorgosbouh/GAIT_ANALYSIS_MEDIAPIPE/main/docs/models/pose_landmarker_lite.task";
 
-// ---- Helpers ----
-async function fetchArrayBuffer(url, { useRange = false } = {}) {
-  const headers = useRange ? { Range: "bytes=0-" } : undefined;
-
-  const res = await fetch(url, {
-    cache: "reload",
-    credentials: "omit",
-    headers,
-  });
-
-  // For range requests, 206 is normal. For normal requests, 200 is normal.
-  if (!res.ok) {
-    throw new Error(`Fetch failed: ${url} (HTTP ${res.status})`);
-  }
+async function fetchAsArrayBuffer(url) {
+  const res = await fetch(url, { cache: "no-store", credentials: "omit" });
+  if (!res.ok) throw new Error(`Model fetch failed: ${url} (HTTP ${res.status})`);
 
   const buf = await res.arrayBuffer();
+
+  if (!buf || buf.byteLength < 1024 * 100) {
+    throw new Error(`Model fetch suspicious size (${buf?.byteLength ?? 0} bytes): ${url}`);
+  }
+
   return buf;
 }
 
-async function fetchModelBufferBestEffort(pagesUrl) {
-  // 1) Try GitHub Pages first (fast if it works)
-  try {
-    const buf = await fetchArrayBuffer(pagesUrl);
-    if (buf && buf.byteLength > 1024 * 100) return buf;
-    console.warn(`[Pose] Pages model returned ${buf?.byteLength ?? 0} bytes, retrying with Range…`);
-
-    // Some CDNs/servers behave better with Range
-    const buf2 = await fetchArrayBuffer(pagesUrl, { useRange: true });
-    if (buf2 && buf2.byteLength > 1024 * 100) return buf2;
-
-    console.warn(`[Pose] Pages+Range model returned ${buf2?.byteLength ?? 0} bytes. Falling back to RAW…`);
-  } catch (e) {
-    console.warn("[Pose] Pages model fetch failed, falling back to RAW…", e);
-  }
-
-  // 2) RAW fallback (most reliable for fetch body)
-  const rawBuf = await fetchArrayBuffer(RAW_MODEL_URL);
-  if (!rawBuf || rawBuf.byteLength < 1024 * 100) {
-    throw new Error(`RAW model fetch suspicious size (${rawBuf?.byteLength ?? 0} bytes): ${RAW_MODEL_URL}`);
-  }
-  return rawBuf;
-}
-
-// ---- Public API expected by app.js ----
 export async function createPoseLandmarker() {
   if (poseLandmarker) return poseLandmarker;
 
   const wasmBase = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.9/wasm";
 
-  // Resolve Pages model URL relative to this file
-  const pagesModelUrl = new URL("./models/pose_landmarker_lite.task", import.meta.url).toString();
-
   console.log("[Pose] pose.js URL:", import.meta.url);
-  console.log("[Pose] Pages model URL:", pagesModelUrl);
   console.log("[Pose] RAW model URL:", RAW_MODEL_URL);
   console.log("[Pose] wasm base:", wasmBase);
 
-  // Load model into memory (buffer) to avoid WASM file-size / StartGraph issues
-  const modelAssetBuffer = await fetchModelBufferBestEffort(pagesModelUrl);
+  const modelAssetBuffer = await fetchAsArrayBuffer(RAW_MODEL_URL);
 
   const vision = await FilesetResolver.forVisionTasks(wasmBase);
 
