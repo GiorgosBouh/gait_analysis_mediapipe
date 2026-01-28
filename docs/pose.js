@@ -1,8 +1,6 @@
 import { PoseLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.9";
 
-// Χρησιμοποιούμε ΑΠΟΚΛΕΙΣΤΙΚΑ το Link της Google για σιγουριά
-const MODEL_URL = "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task";
-
+// Σταθερές που χρειάζεται το app.js
 export const POSE_LANDMARK_NAMES = [
   "nose", "left_eye_inner", "left_eye", "left_eye_outer",
   "right_eye_inner", "right_eye", "right_eye_outer",
@@ -21,18 +19,21 @@ export const LANDMARK_INDEX = Object.fromEntries(
 
 export const POSE_CONNECTIONS = PoseLandmarker.POSE_CONNECTIONS;
 
+// Η κύρια συνάρτηση φόρτωσης
 export async function createPoseLandmarker() {
   try {
-    console.log("[Pose] Initializing Vision Tasks...");
+    console.log("1. Starting FilesetResolver...");
     const vision = await FilesetResolver.forVisionTasks(
       "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.9/wasm"
     );
 
-    console.log(`[Pose] Downloading model from Google: ${MODEL_URL}`);
-    
+    console.log("2. Loading Model from Google CDN...");
+    // Χρησιμοποιούμε το επίσημο URL της Google
+    const modelUrl = "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task";
+
     const poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
       baseOptions: {
-        modelAssetPath: MODEL_URL, // <-- Απευθείας το URL
+        modelAssetPath: modelUrl,
         delegate: "GPU"
       },
       runningMode: "VIDEO",
@@ -42,11 +43,12 @@ export async function createPoseLandmarker() {
       minTrackingConfidence: 0.5,
     });
 
-    console.log("[Pose] Model loaded successfully!");
+    console.log("3. Model Loaded Successfully!");
     return poseLandmarker;
+
   } catch (error) {
-    console.error("[Pose] CRITICAL ERROR:", error);
-    alert("Error loading AI Model. Check Console.");
+    console.error("CRITICAL ERROR IN POSE.JS:", error);
+    alert("Σφάλμα: Το μοντέλο AI δεν φόρτωσε. \n\nΛεπτομέρειες: " + error.message);
     throw error;
   }
 }
