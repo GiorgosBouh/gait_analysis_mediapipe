@@ -1,329 +1,526 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Gait Analysis - ONE FILE FIX</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D Clinical Gait Analysis</title>
 
-  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 
   <style>
-    /* --- CSS START --- */
     :root {
-      --bg: #f8fafc; --card: #ffffff; --text: #0f172a; --muted: #64748b;
-      --primary: #2563eb; --primary-hover: #1d4ed8; --danger: #ef4444;
-      --success: #10b981; --border: #e2e8f0;
+      --bg: #0f172a; --panel: #1e293b; --text: #f1f5f9;
+      --accent: #38bdf8; --success: #22c55e; --danger: #ef4444; --warn: #f59e0b;
     }
-    body { font-family: "Inter", sans-serif; background: var(--bg); color: var(--text); margin: 0; padding-bottom: 40px; }
+    body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; overflow: hidden; }
     
-    /* Header & Layout */
-    .site-header { background: var(--card); border-bottom: 1px solid var(--border); padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; }
-    .site-header h1 { margin: 0; font-size: 1.25rem; }
-    .status-pill { background: #fef3c7; color: #92400e; padding: 0.25rem 0.75rem; border-radius: 99px; font-weight: 600; font-size: 0.875rem; }
+    /* Layout: Top Bar, Left Panel (Controls), Right Panel (3D View), Bottom Left (Video) */
+    .app-container { display: grid; grid-template-columns: 320px 1fr; grid-template-rows: 60px 1fr; height: 100vh; }
     
-    .container { max-width: 1200px; margin: 2rem auto; padding: 0 1rem; display: grid; grid-template-columns: 350px 1fr; gap: 2rem; }
-    @media (max-width: 900px) { .container { grid-template-columns: 1fr; } }
+    .header { grid-column: 1 / -1; background: var(--panel); border-bottom: 1px solid #334155; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; }
+    .header h1 { font-size: 1.2rem; font-weight: 800; color: var(--accent); margin: 0; }
+    .status-badge { background: var(--warn); color: #000; padding: 4px 12px; border-radius: 99px; font-weight: 600; font-size: 0.8rem; }
 
-    /* Panels */
-    .panel { background: var(--card); border: 1px solid var(--border); border-radius: 0.75rem; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    .sidebar { background: var(--panel); border-right: 1px solid #334155; padding: 20px; display: flex; flex-direction: column; gap: 20px; overflow-y: auto; }
     
+    .main-view { position: relative; background: #000; }
+    
+    /* Video Pip (Picture in Picture) */
+    .video-pip {
+      position: absolute; bottom: 20px; left: 20px; width: 240px; aspect-ratio: 16/9;
+      background: #000; border: 2px solid #334155; border-radius: 8px; overflow: hidden;
+      z-index: 10; transition: all 0.3s;
+    }
+    .video-pip video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+    .video-pip:hover { width: 320px; border-color: var(--accent); }
+
     /* Controls */
-    .control-group { margin-bottom: 1.5rem; }
-    .label { display: block; font-weight: 600; margin-bottom: 0.5rem; font-size: 0.9rem; }
-    .btn { cursor: pointer; border: none; padding: 0.6rem 1.2rem; border-radius: 0.5rem; font-weight: 600; transition: all 0.2s; }
-    .btn-primary { background: var(--primary); color: white; }
-    .btn-primary:hover:not(:disabled) { background: var(--primary-hover); }
-    .btn-danger { background: var(--danger); color: white; }
+    .section-title { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; margin-bottom: 10px; font-weight: 700; }
+    .btn { width: 100%; padding: 12px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; transition: 0.2s; margin-bottom: 8px; }
+    .btn-primary { background: var(--accent); color: #0f172a; }
+    .btn-primary:hover { background: #0ea5e9; }
+    .btn-success { background: var(--success); color: #fff; }
+    .btn-danger { background: var(--danger); color: #fff; }
     .btn:disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(1); }
-    
-    input[type="number"], input[type="file"] { width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 0.375rem; }
-    
-    /* Video Area */
-    .video-wrapper { position: relative; background: #000; border-radius: 0.75rem; overflow: hidden; aspect-ratio: 16/9; }
-    video { width: 100%; height: 100%; object-fit: contain; display: block; }
-    canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
 
-    /* Error Box */
-    #errorLog { display: none; background: #fee2e2; color: #991b1b; padding: 1rem; margin: 1rem; border-radius: 0.5rem; border: 1px solid #f87171; font-family: monospace; white-space: pre-wrap; }
-    /* --- CSS END --- */
+    .input-group { margin-bottom: 15px; }
+    .input-group label { display: block; font-size: 0.9rem; margin-bottom: 5px; color: #cbd5e1; }
+    .input-group input { width: 100%; padding: 8px; background: #334155; border: 1px solid #475569; color: white; border-radius: 4px; }
+
+    /* Metrics Overlay on 3D View */
+    .metrics-overlay {
+      position: absolute; top: 20px; right: 20px; 
+      background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(4px);
+      padding: 15px; border-radius: 8px; border: 1px solid #334155;
+      font-family: monospace; font-size: 0.9rem;
+      pointer-events: none;
+    }
+    .metric-row { display: flex; justify-content: space-between; gap: 20px; margin-bottom: 5px; }
+    .val { color: var(--accent); font-weight: bold; }
+
+    /* Loading Overlay */
+    #loadingScreen {
+      position: fixed; inset: 0; background: var(--bg); z-index: 100;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+    }
+    .spinner { width: 40px; height: 40px; border: 4px solid var(--accent); border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
   </style>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+        "@mediapipe/tasks-vision": "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.9/+esm"
+      }
+    }
+  </script>
 </head>
 <body>
 
-  <div class="site-header">
-    <h1>Gait Analysis (All-in-One)</h1>
-    <div id="statusPill" class="status-pill">Initializing...</div>
+  <div id="loadingScreen">
+    <div class="spinner"></div>
+    <p style="margin-top: 20px;">Loading Scientific 3D Engine...</p>
   </div>
 
-  <div id="errorLog"></div>
+  <div class="app-container">
+    <header class="header">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12h20"></path></svg>
+        <h1>BioGait 3D</h1>
+      </div>
+      <div id="systemStatus" class="status-badge">INITIALIZING</div>
+    </header>
 
-  <div class="container">
-    <section class="panel">
-      <div class="control-group">
-        <span class="label">1. Source</span>
-        <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
-          <button id="btnWebcam" class="btn btn-primary" disabled>Start Webcam</button>
-          <button id="btnStop" class="btn btn-danger" disabled>Stop</button>
+    <aside class="sidebar">
+      
+      <div>
+        <div class="section-title">1. Setup</div>
+        <button id="btnCamera" class="btn btn-primary" disabled>Start Camera Preview</button>
+        <div class="input-group">
+          <label>Subject Height (meters)</label>
+          <input type="number" id="inputHeight" value="1.75" step="0.01">
         </div>
-        
-        <span class="label">OR Upload Video</span>
-        <input type="file" id="fileUpload" accept="video/*" disabled>
       </div>
 
-      <hr style="border: 0; border-top: 1px solid var(--border); margin: 1.5rem 0;">
-
-      <div class="control-group">
-        <span class="label">2. Calibration Height (m)</span>
-        <input type="number" id="inputHeight" value="1.75" step="0.01">
+      <div>
+        <div class="section-title">2. Calibration</div>
+        <p style="font-size:0.8rem; color:#94a3b8; margin-bottom:10px;">Stand in T-Pose or Neutral. Ensure full body is visible.</p>
+        <button id="btnCalibrate" class="btn btn-success" disabled>Capture Static Pose</button>
+        <div style="font-size:0.8rem; margin-top:5px;">Scale Factor: <span id="lblScale" style="color:white;">-</span></div>
       </div>
 
-      <div class="control-group">
-        <span class="label">3. Export Data</span>
-        <button id="btnExport" class="btn btn-primary" disabled>Download CSV</button>
+      <div>
+        <div class="section-title">3. Acquisition</div>
+        <button id="btnRecord" class="btn btn-danger" disabled>Start Gait Recording</button>
+        <button id="btnStop" class="btn" style="background:#475569; color:white;" disabled>Stop & Analyze</button>
       </div>
 
-      <div style="background: #f1f5f9; padding: 1rem; border-radius: 0.5rem; font-size: 0.9rem;">
-        <div><strong>Status:</strong> <span id="txtStatus">Waiting for model...</span></div>
-        <div><strong>Scale:</strong> <span id="txtScale">-</span></div>
-        <div><strong>Step Length:</strong> <span id="txtStep">-</span> m</div>
+      <div style="margin-top:auto;">
+        <button id="btnExport" class="btn btn-primary" disabled>Download 3D CSV Data</button>
       </div>
-    </section>
 
-    <section class="panel">
-      <div class="video-wrapper">
-        <video id="videoEl" autoplay playsinline muted></video>
-        <canvas id="canvasEl"></canvas>
+    </aside>
+
+    <main class="main-view" id="canvasContainer">
+      <div class="metrics-overlay" id="metricsOverlay" style="display:none;">
+        <div class="metric-row"><span>Cycle:</span> <span class="val" id="valPhase">-</span></div>
+        <div class="metric-row"><span>R.Knee Flex:</span> <span class="val" id="valRKnee">0°</span></div>
+        <div class="metric-row"><span>L.Knee Flex:</span> <span class="val" id="valLKnee">0°</span></div>
+        <div class="metric-row"><span>Step Len (est):</span> <span class="val" id="valStep">0 m</span></div>
       </div>
-      <p style="font-size: 0.85rem; color: var(--muted); margin-top: 0.5rem;">
-        * For mobile: ensure your switch isn't on "Silent Mode" if video doesn't play automatically.
-      </p>
-    </section>
+    </main>
+
+    <div class="video-pip">
+      <video id="videoElement" autoplay playsinline muted></video>
+    </div>
+
   </div>
 
   <script type="module">
-    // --- 0. ERROR HANDLING (Visual) ---
-    const errorLog = document.getElementById("errorLog");
-    window.onerror = function(msg, source, lineno, colno, error) {
-      errorLog.style.display = "block";
-      errorLog.innerText += `Error: ${msg}\nLine: ${lineno}\n\n`;
-      return false;
-    };
-    window.addEventListener("unhandledrejection", (e) => {
-      errorLog.style.display = "block";
-      errorLog.innerText += `Async Error: ${e.reason}\n\n`;
-    });
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { PoseLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
 
-    // --- 1. IMPORTS (Direct from CDN) ---
-    import { PoseLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0";
-
-    // --- 2. STATE & DOM ---
-    const dom = {
-      statusPill: document.getElementById("statusPill"),
-      btnWebcam: document.getElementById("btnWebcam"),
-      btnStop: document.getElementById("btnStop"),
-      fileUpload: document.getElementById("fileUpload"),
-      btnExport: document.getElementById("btnExport"),
-      inputHeight: document.getElementById("inputHeight"),
-      video: document.getElementById("videoEl"),
-      canvas: document.getElementById("canvasEl"),
-      txtStatus: document.getElementById("txtStatus"),
-      txtScale: document.getElementById("txtScale"),
-      txtStep: document.getElementById("txtStep"),
+    // --- CONFIGURATION ---
+    // Use FULL model for scientific accuracy (Heavy is too slow for web usually)
+    const MODEL_URL = "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task";
+    
+    // --- STATE MANAGEMENT ---
+    const state = {
+      isReady: false,
+      isCalibrated: false,
+      isRecording: false,
+      scaleFactor: 1.0, // Multiplier to convert MP Normalized World to Real Meters
+      calibrationFrames: [],
+      recordedData: [],
+      videoSize: { width: 0, height: 0 }
     };
 
+    // --- DOM ELEMENTS ---
+    const els = {
+      video: document.getElementById('videoElement'),
+      container: document.getElementById('canvasContainer'),
+      loading: document.getElementById('loadingScreen'),
+      status: document.getElementById('systemStatus'),
+      btnCam: document.getElementById('btnCamera'),
+      btnCal: document.getElementById('btnCalibrate'),
+      btnRec: document.getElementById('btnRecord'),
+      btnStop: document.getElementById('btnStop'),
+      btnExp: document.getElementById('btnExport'),
+      lblScale: document.getElementById('lblScale'),
+      valPhase: document.getElementById('valPhase'),
+      valRKnee: document.getElementById('valRKnee'),
+      valLKnee: document.getElementById('valLKnee'),
+      valStep: document.getElementById('valStep'),
+      metrics: document.getElementById('metricsOverlay'),
+      inputHeight: document.getElementById('inputHeight')
+    };
+
+    // --- THREE.JS VARIABLES ---
+    let scene, camera, renderer, controls, gridHelper;
+    const bones = []; 
+    const joints = [];
+    const SKELETON_CONNECTIONS = [
+      [11,12], // Shoulders
+      [11,13], [13,15], // Left Arm
+      [12,14], [14,16], // Right Arm
+      [11,23], [12,24], // Torso sides
+      [23,24], // Hips
+      [23,25], [25,27], [27,29], [29,31], // Left Leg
+      [24,26], [26,28], [28,30], [30,32]  // Right Leg
+    ];
+    // Color coding: Right = Red/Orange, Left = Blue/Teal, Center = Gray
+    const JOINT_COLORS = { left: 0x38bdf8, right: 0xf97316, center: 0xffffff };
+
+    // --- MEDIAPIPE VARIABLES ---
     let poseLandmarker = null;
-    let running = false;
-    let requestAnimId = null;
     let lastVideoTime = -1;
-    let dataLog = [];
-    let calibration = { samples: [], scale: null };
+    let rafId = null;
 
-    // --- 3. INITIALIZATION ---
+    // --- INITIALIZATION ---
     async function init() {
+      initThreeJS();
+      await initMediaPipe();
+      
+      els.loading.style.display = 'none';
+      els.status.innerText = "READY";
+      els.status.style.background = "#22c55e"; // Green
+      els.status.style.color = "#fff";
+      els.btnCam.disabled = false;
+    }
+
+    function initThreeJS() {
+      // Scene
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x0f172a); // Dark Blue-Gray
+
+      // Camera
+      camera = new THREE.PerspectiveCamera(50, els.container.clientWidth / els.container.clientHeight, 0.1, 100);
+      camera.position.set(0, 1.5, 3.5); // Look from front/slightly up
+
+      // Renderer
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setSize(els.container.clientWidth, els.container.clientHeight);
+      renderer.setPixelRatio(window.devicePixelRatio);
+      els.container.appendChild(renderer.domElement);
+
+      // Controls
+      controls = new OrbitControls(camera, renderer.domElement);
+      controls.target.set(0, 1, 0);
+      controls.enableDamping = true;
+
+      // Lighting
+      const light = new THREE.DirectionalLight(0xffffff, 2);
+      light.position.set(2, 4, 3);
+      scene.add(light);
+      scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+
+      // Floor Grid
+      gridHelper = new THREE.GridHelper(4, 20, 0x334155, 0x1e293b);
+      scene.add(gridHelper);
+
+      // Skeleton Init
+      // 33 Landmarks in MediaPipe Pose
+      for (let i = 0; i < 33; i++) {
+        const geo = new THREE.SphereGeometry(0.04);
+        const mat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.visible = false;
+        scene.add(mesh);
+        joints.push(mesh);
+      }
+
+      // Bones Init
+      SKELETON_CONNECTIONS.forEach((conn) => {
+        const geo = new THREE.CylinderGeometry(0.02, 0.02, 1, 8);
+        const mat = new THREE.MeshStandardMaterial({ color: 0xcccccc });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.visible = false;
+        scene.add(mesh);
+        bones.push({ mesh, start: conn[0], end: conn[1] });
+      });
+
+      window.addEventListener('resize', onWindowResize);
+      animateThree();
+    }
+
+    function onWindowResize() {
+      camera.aspect = els.container.clientWidth / els.container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(els.container.clientWidth, els.container.clientHeight);
+    }
+
+    function animateThree() {
+      requestAnimationFrame(animateThree);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    async function initMediaPipe() {
       try {
-        dom.statusPill.innerText = "Loading Model...";
-        dom.statusPill.style.background = "#fef3c7";
-
-        const vision = await FilesetResolver.forVisionTasks(
-          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
-        );
-
+        const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.9/wasm");
         poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
           baseOptions: {
-            modelAssetPath: `https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task`,
+            modelAssetPath: MODEL_URL,
             delegate: "GPU"
           },
           runningMode: "VIDEO",
           numPoses: 1
         });
-
-        // UNLOCK UI
-        dom.statusPill.innerText = "System Ready";
-        dom.statusPill.style.background = "#dcfce7"; 
-        dom.statusPill.style.color = "#166534";
-        
-        dom.btnWebcam.disabled = false;
-        dom.fileUpload.disabled = false;
-        dom.txtStatus.innerText = "Model Loaded. Ready to start.";
-        
-        console.log("Model Loaded Successfully");
-
-      } catch (err) {
-        console.error(err);
-        dom.statusPill.innerText = "Error";
-        dom.statusPill.style.background = "#fee2e2";
-        alert("Failed to load AI Model. See error log at top of page.");
+        console.log("MediaPipe Loaded");
+      } catch (e) {
+        alert("Failed to load AI Model: " + e.message);
       }
     }
 
-    // --- 4. CONTROLS ---
-    dom.btnWebcam.addEventListener("click", async () => {
-      resetSession();
+    // --- APPLICATION LOGIC ---
+
+    els.btnCam.addEventListener('click', async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        dom.video.srcObject = stream;
-        dom.video.addEventListener("loadeddata", predictWebcam);
-        running = true;
-        updateButtons(true);
-      } catch (err) {
-        alert("Camera not found or permission denied.");
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 } });
+        els.video.srcObject = stream;
+        els.video.addEventListener('loadeddata', () => {
+          state.isReady = true;
+          state.videoSize = { width: els.video.videoWidth, height: els.video.videoHeight };
+          els.btnCam.disabled = true;
+          els.btnCal.disabled = false;
+          els.status.innerText = "PREVIEW MODE";
+          els.status.style.background = "#38bdf8"; // Blue
+          
+          predictLoop();
+        });
+      } catch (e) {
+        alert("Camera access denied.");
       }
     });
 
-    dom.fileUpload.addEventListener("change", (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      resetSession();
-      const url = URL.createObjectURL(file);
-      dom.video.srcObject = null;
-      dom.video.src = url;
-      dom.video.play();
-      dom.video.addEventListener("loadeddata", predictWebcam);
-      running = true;
-      updateButtons(true);
+    els.btnCal.addEventListener('click', () => {
+      state.calibrationFrames = [];
+      els.status.innerText = "CALIBRATING...";
+      els.status.style.background = "#f59e0b"; // Orange
+      
+      // Calibrate for 2 seconds (approx 60 frames)
+      setTimeout(() => {
+        finalizeCalibration();
+      }, 2000);
     });
 
-    dom.btnStop.addEventListener("click", () => {
-      running = false;
-      if (dom.video.srcObject) {
-        dom.video.srcObject.getTracks().forEach(t => t.stop());
+    function finalizeCalibration() {
+      if (state.calibrationFrames.length < 10) {
+        alert("Calibration failed. Not enough frames. Ensure visibility.");
+        els.status.innerText = "PREVIEW MODE";
+        return;
       }
-      dom.video.pause();
-      updateButtons(false);
+      
+      // Calculate Median Height in MP Units
+      const heights = state.calibrationFrames.sort((a,b) => a - b);
+      const medianHeightMP = heights[Math.floor(heights.length / 2)];
+      
+      const realHeight = parseFloat(els.inputHeight.value);
+      state.scaleFactor = realHeight / medianHeightMP;
+      state.isCalibrated = true;
+
+      els.lblScale.innerText = state.scaleFactor.toFixed(3);
+      els.status.innerText = "CALIBRATED - READY";
+      els.status.style.background = "#22c55e"; 
+      els.btnCal.disabled = true;
+      els.btnRec.disabled = false;
+      els.metrics.style.display = 'block';
+    }
+
+    els.btnRec.addEventListener('click', () => {
+      state.recordedData = [];
+      state.isRecording = true;
+      els.status.innerText = "RECORDING GAIT";
+      els.status.style.background = "#ef4444"; // Red
+      els.btnRec.disabled = true;
+      els.btnStop.disabled = false;
+      els.btnCal.disabled = true;
     });
 
-    dom.btnExport.addEventListener("click", () => {
-      if (dataLog.length === 0) return;
-      const csvContent = "data:text/csv;charset=utf-8," 
-        + "timestamp,step_length_m\n"
-        + dataLog.map(e => `${e.t},${e.sl}`).join("\n");
+    els.btnStop.addEventListener('click', () => {
+      state.isRecording = false;
+      els.status.innerText = "CAPTURED";
+      els.status.style.background = "#38bdf8";
+      els.btnStop.disabled = true;
+      els.btnRec.disabled = false;
+      els.btnExport.disabled = false;
+    });
+
+    els.btnExport.addEventListener('click', () => {
+      if(state.recordedData.length === 0) return;
+
+      let csvContent = "data:text/csv;charset=utf-8,Timestamp_s,Phase,LeftKneeFlexion_deg,RightKneeFlexion_deg,";
+      
+      // Header for joints (x,y,z)
+      for(let i=0; i<33; i++) csvContent += `Joint${i}_X,Joint${i}_Y,Joint${i}_Z,`;
+      csvContent += "\n";
+
+      state.recordedData.forEach(row => {
+        csvContent += `${row.time.toFixed(3)},${row.phase},${row.lKnee.toFixed(1)},${row.rKnee.toFixed(1)},`;
+        row.landmarks.forEach(lm => {
+          csvContent += `${lm.x.toFixed(4)},${lm.y.toFixed(4)},${lm.z.toFixed(4)},`;
+        });
+        csvContent += "\n";
+      });
+
       const encodedUri = encodeURI(csvContent);
       const link = document.createElement("a");
       link.setAttribute("href", encodedUri);
-      link.setAttribute("download", "gait_data.csv");
+      link.setAttribute("download", "3d_gait_analysis.csv");
       document.body.appendChild(link);
       link.click();
     });
 
-    function updateButtons(isRunning) {
-      dom.btnWebcam.disabled = isRunning;
-      dom.fileUpload.disabled = isRunning;
-      dom.btnStop.disabled = !isRunning;
-      dom.btnExport.disabled = isRunning && dataLog.length === 0;
-    }
+    // --- MAIN LOOP ---
 
-    function resetSession() {
-      dataLog = [];
-      calibration = { samples: [], scale: null };
-      dom.txtScale.innerText = "-";
-      dom.txtStep.innerText = "-";
-      dom.btnExport.disabled = true;
-    }
+    async function predictLoop() {
+      if (els.video.currentTime !== lastVideoTime) {
+        lastVideoTime = els.video.currentTime;
+        const startTime = performance.now();
+        
+        const result = poseLandmarker.detectForVideo(els.video, startTime);
 
-    // --- 5. PREDICTION LOOP ---
-    async function predictWebcam() {
-      if (!running) return;
-
-      // Resize canvas to match video
-      if (dom.video.videoWidth !== dom.canvas.width) {
-        dom.canvas.width = dom.video.videoWidth;
-        dom.canvas.height = dom.video.videoHeight;
+        if (result.worldLandmarks && result.worldLandmarks.length > 0) {
+          const landmarks = result.worldLandmarks[0];
+          update3DScene(landmarks);
+          processGait(landmarks, els.video.currentTime);
+        }
       }
+      requestAnimationFrame(predictLoop);
+    }
 
-      let startTimeMs = performance.now();
-      if (lastVideoTime !== dom.video.currentTime) {
-        lastVideoTime = dom.video.currentTime;
-        
-        const result = poseLandmarker.detectForVideo(dom.video, startTimeMs);
-        
-        const ctx = dom.canvas.getContext("2d");
-        ctx.clearRect(0, 0, dom.canvas.width, dom.canvas.height);
-
-        if (result.landmarks && result.landmarks.length > 0) {
-          const lm = result.landmarks[0];
-          drawLandmarks(lm, ctx);
-          processGait(lm, dom.video.currentTime);
+    function update3DScene(landmarks) {
+      // 1. Update Joints
+      for (let i = 0; i < landmarks.length; i++) {
+        const lm = landmarks[i];
+        if (joints[i]) {
+          // MediaPipe coords: Y is down, Z is depth. ThreeJS: Y is up.
+          // We Flip Y and Z to match typical 3D world space
+          // Also apply Scale Factor if calibrated
+          const scale = state.isCalibrated ? state.scaleFactor : 1.0;
+          
+          joints[i].position.set(lm.x * scale, -lm.y * scale + (state.isCalibrated ? 1.0 : 0), -lm.z * scale);
+          joints[i].visible = true;
+          
+          // Color coding
+          if(i % 2 !== 0) joints[i].material.color.setHex(JOINT_COLORS.left); // Left (Odd)
+          else joints[i].material.color.setHex(JOINT_COLORS.right); // Right (Even)
+          if(i === 0 || (i > 10 && i < 13) || (i > 22 && i < 25)) joints[i].material.color.setHex(JOINT_COLORS.center);
         }
       }
 
-      if (running) {
-        window.requestAnimationFrame(predictWebcam);
-      }
+      // 2. Update Bones
+      bones.forEach(bone => {
+        const start = joints[bone.start].position;
+        const end = joints[bone.end].position;
+        
+        // Position cylinder at midpoint
+        bone.mesh.position.copy(start).add(end).multiplyScalar(0.5);
+        bone.mesh.lookAt(end);
+        bone.mesh.rotateX(Math.PI / 2); // Cylinder default is Y-aligned
+
+        const dist = start.distanceTo(end);
+        bone.mesh.scale.set(1, dist, 1);
+        bone.mesh.visible = true;
+      });
     }
 
-    // --- 6. GAIT LOGIC (Simplified) ---
     function processGait(lm, time) {
-      // Indexes: Nose=0, L_Ankle=27, R_Ankle=28
-      const nose = lm[0];
-      const lAnkle = lm[27];
-      const rAnkle = lm[28];
-
-      // Auto Calibrate (Simple)
-      if (!calibration.scale && nose && lAnkle) {
-        const pxHeight = Math.abs(nose.y - lAnkle.y) * dom.canvas.height;
-        calibration.samples.push(pxHeight);
-        if (calibration.samples.length > 30) {
-          // Median
-          calibration.samples.sort((a,b) => a-b);
-          const medianPx = calibration.samples[Math.floor(calibration.samples.length/2)];
-          const realHeight = parseFloat(dom.inputHeight.value);
-          calibration.scale = realHeight / medianPx;
-          dom.txtScale.innerText = calibration.scale.toFixed(4) + " m/px";
-          dom.txtStatus.innerText = "Calibrated!";
-        } else {
-          dom.txtStatus.innerText = `Calibrating... ${Math.floor((calibration.samples.length/30)*100)}%`;
-        }
-      }
-
-      // Step Length
-      if (calibration.scale && lAnkle && rAnkle) {
-        const pxDist = Math.abs(lAnkle.x - rAnkle.x) * dom.canvas.width;
-        const mDist = pxDist * calibration.scale;
-        
-        dom.txtStep.innerText = mDist.toFixed(2);
-        dataLog.push({ t: time.toFixed(2), sl: mDist.toFixed(3) });
-        dom.btnExport.disabled = false;
-      }
-    }
-
-    // --- 7. DRAWING HELPERS ---
-    function drawLandmarks(lm, ctx) {
-      ctx.fillStyle = "#2563eb";
-      ctx.strokeStyle = "white";
-      ctx.lineWidth = 2;
+      // Indexes: 23=L_Hip, 24=R_Hip, 25=L_Knee, 26=R_Knee, 27=L_Ankle, 28=R_Ankle
       
-      for (let p of lm) {
-        const x = p.x * dom.canvas.width;
-        const y = p.y * dom.canvas.height;
-        ctx.beginPath();
-        ctx.arc(x, y, 4, 0, 2*Math.PI);
-        ctx.fill();
-        ctx.stroke();
+      // 1. Calibration Data Collection
+      if (!state.isCalibrated && els.status.innerText === "CALIBRATING...") {
+        // Height = Distance from Eye(avg) to Heel(avg) roughly, or just max extent Y
+        // MP world landmarks are hip-relative usually. 
+        // We approximate full height by (Nose.y - MidAnkle.y)
+        const noseY = lm[0].y;
+        const ankleY = (lm[27].y + lm[28].y) / 2;
+        const heightMP = Math.abs(ankleY - noseY); 
+        state.calibrationFrames.push(heightMP);
+        return;
+      }
+
+      // 2. Real-time Metrics
+      const rKneeAngle = calculateAngle3D(lm[24], lm[26], lm[28]);
+      const lKneeAngle = calculateAngle3D(lm[23], lm[25], lm[27]);
+      
+      // Determine Gait Phase (Simple logic based on Foot Height Z/Y relative to other foot)
+      // Stance vs Swing
+      let phase = "Double Support";
+      const lAnkleZ = lm[27].z; // Depth
+      const rAnkleZ = lm[28].z;
+      
+      // Simple heuristic: which foot is forward?
+      if (Math.abs(lAnkleZ - rAnkleZ) > 0.1) {
+          phase = lAnkleZ < rAnkleZ ? "L. Swing / R. Stance" : "R. Swing / L. Stance";
+      }
+
+      // Step Length Est (Distance between ankles in Z plane)
+      const scale = state.scaleFactor;
+      const stepLen = Math.abs(lm[27].z - lm[28].z) * scale;
+
+      // Update UI
+      els.valRKnee.innerText = rKneeAngle.toFixed(0) + "°";
+      els.valLKnee.innerText = lKneeAngle.toFixed(0) + "°";
+      els.valPhase.innerText = phase;
+      els.valStep.innerText = state.isCalibrated ? stepLen.toFixed(2) + " m" : "Uncalib";
+
+      // 3. Recording
+      if (state.isRecording) {
+        state.recordedData.push({
+          time: time,
+          phase: phase,
+          lKnee: lKneeAngle,
+          rKnee: rKneeAngle,
+          landmarks: lm.map(p => ({ x: p.x*scale, y: p.y*scale, z: p.z*scale }))
+        });
       }
     }
 
-    // START
+    function calculateAngle3D(a, b, c) {
+      // Vector BA
+      const v1 = { x: a.x - b.x, y: a.y - b.y, z: a.z - b.z };
+      // Vector BC
+      const v2 = { x: c.x - b.x, y: c.y - b.y, z: c.z - b.z };
+
+      // Dot product
+      const dot = v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
+      
+      // Magnitudes
+      const mag1 = Math.sqrt(v1.x*v1.x + v1.y*v1.y + v1.z*v1.z);
+      const mag2 = Math.sqrt(v2.x*v2.x + v2.y*v2.y + v2.z*v2.z);
+
+      // Angle in radians
+      const angleRad = Math.acos(dot / (mag1 * mag2));
+      // Convert to degrees
+      return (180 - (angleRad * (180 / Math.PI))); // 180 - angle because we want flexion (straight leg = 0/180)
+    }
+
+    // Start
     init();
 
   </script>
