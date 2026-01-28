@@ -4,7 +4,7 @@ import {
   POSE_LANDMARK_NAMES,
   POSE_CONNECTIONS,
   LANDMARK_INDEX,
-} from "./pose.js?v=20260201_1015";
+} from "./pose.js?v=20260201_1035";
 import {
   clamp,
   median,
@@ -14,10 +14,10 @@ import {
   computeDtStats,
   ensureCanvasSize,
   computePeaks,
-} from "./utils.js?v=20260201_1015";
-import { LineChart } from "./charts.js?v=20260201_1015";
+} from "./utils.js?v=20260201_1035";
+import { LineChart } from "./charts.js?v=20260201_1035";
 
-const BUILD_STAMP = "20260201_1015";
+const BUILD_STAMP = "20260201_1035";
 console.log(`APP.JS VERSION: ${BUILD_STAMP}`);
 
 const appState = {
@@ -491,8 +491,6 @@ async function initPose() {
   if (appState.modelLoading) return false;
 
   appState.modelLoading = true;
-  dom.startLive.disabled = true;
-  dom.startUpload.disabled = true;
 
   setStatus("Loading model…");
 
@@ -509,8 +507,7 @@ async function initPose() {
     return false;
   } finally {
     appState.modelLoading = false;
-    dom.startLive.disabled = false;
-    dom.startUpload.disabled = !dom.videoFile.files.length;
+    updateControls(appState.running);
   }
 }
 
@@ -524,9 +521,9 @@ function setVideoSize() {
 }
 
 function updateControls(running) {
-  dom.startLive.disabled = running || appState.modelLoading;
+  dom.startLive.disabled = running;
   dom.stopLive.disabled = !running;
-  dom.startUpload.disabled = running || !dom.videoFile.files.length || appState.modelLoading;
+  dom.startUpload.disabled = running || !dom.videoFile.files.length;
   dom.stopUpload.disabled = !running;
 }
 
@@ -704,7 +701,7 @@ function setupEventListeners() {
   dom.stopLive.addEventListener("click", stopProcessing);
 
   dom.videoFile.addEventListener("change", () => {
-    dom.startUpload.disabled = !dom.videoFile.files.length || !appState.modelReady;
+    dom.startUpload.disabled = !dom.videoFile.files.length || appState.running;
   });
   dom.startUpload.addEventListener("click", startUpload);
   dom.stopUpload.addEventListener("click", stopProcessing);
@@ -744,10 +741,7 @@ async function init() {
   setupEventListeners();
   setupGlobalErrorHandlers();
 
-  // Preload model (but app still guards Start)
-  await initPose();
-
-  // Make sure controls reflect model status
+  // Do not preload the model; allow users to click Start immediately.
   updateControls(false);
 }
 
