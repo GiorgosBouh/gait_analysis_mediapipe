@@ -4,8 +4,15 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Gait Analysis (MediaPipe Pose) — In-Browser</title>
-  <link rel="stylesheet" href="assets/styles.css" />
+
+  <!--
+    IMPORTANT for GitHub Pages on a subpath (e.g. https://giorgosbouh.github.io/gait_analysis_mediapipe/):
+    Use relative paths (no leading slash).
+    Ensure these files exist under: docs/assets/...
+  -->
+  <link rel="stylesheet" href="./assets/styles.css" />
 </head>
+
 <body>
   <header class="site-header">
     <div>
@@ -18,28 +25,28 @@
   <main class="layout">
     <section class="panel controls">
       <div class="tabs">
-        <button class="tab active" data-tab="live">Live Capture</button>
-        <button class="tab" data-tab="upload">Upload Video</button>
+        <button class="tab active" data-tab="live" type="button">Live Capture</button>
+        <button class="tab" data-tab="upload" type="button">Upload Video</button>
       </div>
 
       <div class="tab-content active" id="tab-live">
         <div class="control-row">
           <label class="control-label">Camera</label>
           <div class="button-group">
-            <button id="startLive" class="primary">Start</button>
-            <button id="stopLive" class="secondary" disabled>Stop</button>
+            <button id="startLive" class="primary" type="button">Start</button>
+            <button id="stopLive" class="secondary" type="button" disabled>Stop</button>
           </div>
         </div>
       </div>
 
       <div class="tab-content" id="tab-upload">
         <div class="control-row">
-          <label class="control-label">Video file</label>
+          <label class="control-label" for="videoFile">Video file</label>
           <input type="file" id="videoFile" accept="video/*" />
         </div>
         <div class="control-row">
-          <button id="startUpload" class="primary" disabled>Analyze Upload</button>
-          <button id="stopUpload" class="secondary" disabled>Stop</button>
+          <button id="startUpload" class="primary" type="button" disabled>Analyze Upload</button>
+          <button id="stopUpload" class="secondary" type="button" disabled>Stop</button>
         </div>
       </div>
 
@@ -51,16 +58,19 @@
           <input type="number" id="heightInput" min="1" max="2.3" step="0.01" value="1.75" />
           <small>Valid range: 1.00–2.30 m</small>
         </div>
+
         <div class="control-item">
           <label for="smoothingWindow">Smoothing window</label>
           <input type="range" id="smoothingWindow" min="1" max="15" value="5" />
           <div class="range-value"><span id="smoothingValue">5</span> frames</div>
         </div>
+
         <div class="control-item">
           <label for="inferenceThrottle">Inference throttle</label>
-          <input type="range" id="inferenceThrottle" min="1" max="4" value="1" />
-          <div class="range-value">Every <span id="inferenceValue">1</span> frame</div>
+          <input type="range" id="inferenceThrottle" min="1" max="4" value="2" />
+          <div class="range-value">Every <span id="inferenceValue">2</span> frame</div>
         </div>
+
         <div class="control-item">
           <label>Pose overlay</label>
           <label class="switch">
@@ -68,19 +78,20 @@
             <span class="slider"></span>
           </label>
         </div>
+
         <div class="control-item">
           <label>Auto-calibrate</label>
           <label class="switch">
             <input type="checkbox" id="autoCalibrate" checked />
             <span class="slider"></span>
           </label>
-          <button id="calibrateNow" class="secondary">Calibrate now</button>
+          <button id="calibrateNow" class="secondary" type="button">Calibrate now</button>
         </div>
       </div>
 
       <div class="export-row">
-        <button id="exportCsv" class="primary" disabled>Αντιγραφή αρχείου CSV</button>
-        <button id="exportMeta" class="secondary" disabled>Αντιγραφή αρχείου JSON</button>
+        <button id="exportCsv" class="primary" type="button" disabled>Αντιγραφή αρχείου CSV</button>
+        <button id="exportMeta" class="secondary" type="button" disabled>Αντιγραφή αρχείου JSON</button>
       </div>
 
       <div class="status-box" id="statusBox">
@@ -118,9 +129,11 @@
 
     <section class="panel preview">
       <div class="video-wrapper">
-        <video id="video" playsinline></video>
+        <!-- playsinline helps iOS; muted allows autoplay in some browsers -->
+        <video id="video" playsinline muted></video>
         <canvas id="overlay"></canvas>
       </div>
+
       <div class="charts">
         <div class="chart-card">
           <h3>Step length over time</h3>
@@ -167,6 +180,7 @@
     <p>Exports include normalized landmarks, pixel coordinates, calibrated 2D meters (when available), and 3D world landmarks. World landmarks are in meters relative to the pelvis/hips (body-centric), not absolute camera/world position.</p>
   </footer>
 
-  <script type="module" src="assets/app.js"></script>
+  <!-- Main JS (ES module). Must exist at docs/assets/app.js -->
+  <script type="module" src="./assets/app.js"></script>
 </body>
 </html>
