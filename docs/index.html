@@ -5,10 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Gait Analysis (MediaPipe Pose) — In-Browser</title>
 
-  <!-- ✅ FIX: correct CSS path for GitHub Pages (same folder as index.html) -->
-  <link rel="stylesheet" href="./style.css" />
+  <link rel="stylesheet" href="./style.css?v=FIX_FINAL" />
 
-  <!-- (optional) makes CDN loads a bit faster -->
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="preconnect" href="https://storage.googleapis.com" crossorigin>
 </head>
@@ -90,8 +88,8 @@
       </div>
 
       <div class="export-row">
-        <button id="exportCsv" class="primary" disabled>Αντιγραφή αρχείου CSV</button>
-        <button id="exportMeta" class="secondary" disabled>Αντιγραφή αρχείου JSON</button>
+        <button id="exportCsv" class="primary" disabled>Λήψη αρχείου CSV</button>
+        <button id="exportMeta" class="secondary" disabled>Λήψη αρχείου JSON</button>
       </div>
 
       <div class="status-box" id="statusBox">
@@ -129,7 +127,6 @@
 
     <section class="panel preview">
       <div class="video-wrapper">
-        <!-- ✅ FIX: Safari/iOS needs muted + autoplay + playsinline for webcam playback -->
         <video id="video" autoplay muted playsinline></video>
         <canvas id="overlay"></canvas>
       </div>
@@ -180,7 +177,6 @@
     <p>Exports include normalized landmarks, pixel coordinates, calibrated 2D meters (when available), and 3D world landmarks. World landmarks are in meters relative to the pelvis/hips (body-centric), not absolute camera/world position.</p>
   </footer>
 
-  <!-- ✅ FIX: correct JS path for GitHub Pages (same folder as index.html) -->
-<script type="module" src="./app.js?v=FIX_FINAL"></script
+  <script type="module" src="./app.js?v=FIX_FINAL"></script>
 </body>
 </html>
