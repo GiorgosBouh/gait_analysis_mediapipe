@@ -4,7 +4,7 @@ import {
   POSE_LANDMARK_NAMES,
   POSE_CONNECTIONS,
   LANDMARK_INDEX,
-} from "./pose.js";
+} from "./pose.js?v=20260128_1255";
 import {
   clamp,
   median,
@@ -14,8 +14,11 @@ import {
   computeDtStats,
   ensureCanvasSize,
   computePeaks,
-} from "./utils.js";
-import { LineChart } from "./charts.js";
+} from "./utils.js?v=20260128_1255";
+import { LineChart } from "./charts.js?v=20260128_1255";
+
+const BUILD_STAMP = "20260128_1255";
+console.log(`APP.JS VERSION: ${BUILD_STAMP}`);
 
 const appState = {
   mode: "live",
@@ -83,6 +86,31 @@ let uploadUrl = null;
 
 function setStatus(message) {
   dom.appStatus.textContent = message;
+}
+
+function formatErrorMessage(error) {
+  if (!error) return "Unknown error";
+  if (typeof error === "string") return error;
+  if (error?.message) return error.message;
+  return String(error);
+}
+
+function reportError(source, error) {
+  const msg = formatErrorMessage(error);
+  const fullMessage = source ? `${source}: ${msg}` : msg;
+  console.error(fullMessage, error);
+  setStatus(fullMessage);
+  warnOnce(fullMessage);
+  updateStatusUI();
+}
+
+function setupGlobalErrorHandlers() {
+  window.addEventListener("unhandledrejection", (event) => {
+    reportError("Unhandled promise rejection", event.reason);
+  });
+  window.addEventListener("error", (event) => {
+    reportError("Unhandled error", event.error || event.message);
+  });
 }
 
 function warnOnce(message) {
@@ -474,13 +502,7 @@ async function initPose() {
     setStatus("Ready");
     return true;
   } catch (err) {
-    console.error(err);
-
-    const msg = (err && err.message) ? err.message : String(err);
-    setStatus(`Model load failed: ${msg}`);
-
-    if (!appState.warnings.includes(msg)) appState.warnings.push(msg);
-    updateStatusUI();
+    reportError("Model load failed", err);
 
     appState.poseLandmarker = null;
     appState.modelReady = false;
@@ -636,9 +658,7 @@ function runLoop() {
     try {
       result = appState.poseLandmarker.detectForVideo(dom.video, now);
     } catch (err) {
-      console.error(err);
-      warnOnce("Pose detection failed (see Console)");
-      updateStatusUI();
+      reportError("Pose detection failed", err);
       animationId = requestAnimationFrame(runLoop);
       return;
     }
@@ -722,6 +742,7 @@ async function init() {
   updateControls(false);
   updateStatusUI();
   setupEventListeners();
+  setupGlobalErrorHandlers();
 
   // Preload model (but app still guards Start)
   await initPose();
