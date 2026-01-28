@@ -3,11 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BioGait 3D - v3.5 Ultimate</title>
+  <title>BioGait 3D - Gold Master v4.2</title>
 
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 
   <style>
+    /* --- CSS STYLES --- */
     :root {
       --bg: #0f172a; --panel: #1e293b; --text: #f8fafc;
       --accent: #0ea5e9; --success: #10b981; --danger: #ef4444; --warn: #f59e0b;
@@ -15,18 +16,21 @@
     }
     body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; overflow: hidden; height: 100vh; }
     
-    /* Layout */
-    .app-container { display: grid; grid-template-columns: 340px 1fr; grid-template-rows: 60px 1fr; height: 100%; }
+    /* Grid Layout */
+    .app-container { display: grid; grid-template-columns: 350px 1fr; grid-template-rows: 60px 1fr; height: 100%; }
     
+    /* Header */
     .header { grid-column: 1 / -1; background: var(--panel); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; }
     .header h1 { font-size: 1.1rem; font-weight: 800; color: var(--accent); margin: 0; display:flex; align-items:center; gap:10px; text-transform: uppercase; letter-spacing: 1px; }
     .status-badge { background: #334155; color: #fff; padding: 4px 12px; border-radius: 4px; font-weight: 700; font-size: 0.75rem; font-family: 'JetBrains Mono', monospace; }
 
+    /* Sidebar */
     .sidebar { background: var(--panel); border-right: 1px solid var(--border); padding: 20px; display: flex; flex-direction: column; gap: 15px; overflow-y: auto; z-index: 5; position: relative; }
     
+    /* 3D View */
     .main-view { position: relative; background: radial-gradient(circle at center, #1e293b 0%, #020617 100%); overflow: hidden; }
     
-    /* Video PIP */
+    /* PIP Video (Small Camera View) */
     .video-pip {
       position: absolute; top: 20px; right: 20px; width: 280px; aspect-ratio: 16/9;
       background: #000; border: 2px solid #475569; border-radius: 8px; overflow: hidden;
@@ -35,13 +39,15 @@
     .video-pip video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
     .video-pip:hover { width: 360px; border-color: var(--accent); z-index: 100; }
 
-    /* Controls */
+    /* UI Controls */
     .section-title { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; margin-bottom: 8px; font-weight: 700; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+    
     .btn { width: 100%; padding: 12px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; transition: 0.2s; margin-bottom: 6px; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; gap: 8px; }
     .btn-primary { background: var(--accent); color: #fff; }
     .btn-primary:hover:not(:disabled) { background: #0284c7; }
     .btn-success { background: var(--success); color: #fff; }
     .btn-danger { background: var(--danger); color: #fff; }
+    .btn-warn { background: var(--warn); color: #000; }
     .btn-secondary { background: #475569; color: #fff; }
     .btn:disabled { opacity: 0.4; cursor: not-allowed; filter: grayscale(1); }
 
@@ -49,78 +55,60 @@
     .input-group label { display: block; font-size: 0.75rem; margin-bottom: 4px; color: #cbd5e1; }
     .input-group input { width: 100%; padding: 8px; background: #0f172a; border: 1px solid var(--border); color: white; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; }
 
-    /* Metrics Overlay */
-    .metrics-panel {
-      position: absolute; top: 20px; left: 20px; width: 220px;
-      background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(4px);
-      padding: 12px; border-radius: 8px; border: 1px solid var(--border);
-      font-family: 'JetBrains Mono', monospace; font-size: 0.75rem;
-      pointer-events: none; user-select: none; z-index: 10;
-    }
-    .metric-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
-    .val { color: var(--accent); font-weight: bold; }
-
-    /* Calibration Progress */
-    #calibProgress { width: 100%; height: 6px; background: #334155; border-radius: 3px; margin-top: 5px; overflow: hidden; display: none; }
-    #calibBar { width: 0%; height: 100%; background: var(--success); transition: width 0.1s linear; }
-
-    /* Footer / Info Toggles */
-    .footer-section { margin-top: auto; padding-top: 15px; border-top: 1px solid var(--border); }
-    
-    .info-toggle {
-      background: none; border: none; color: #94a3b8; font-size: 0.75rem; 
-      cursor: pointer; width: 100%; text-align: left; padding: 6px 0;
-      display: flex; align-items: center; gap: 6px; transition: color 0.2s;
-    }
-    .info-toggle:hover { color: var(--accent); }
-    
-    .info-box {
-      display: none; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px;
-      font-size: 0.7rem; color: #cbd5e1; margin-bottom: 10px;
-      border-left: 2px solid var(--accent);
-    }
-    .info-box ul { margin: 0; padding-left: 15px; }
-    .info-box li { margin-bottom: 5px; line-height: 1.3; }
-
-    .footer-credit {
-      text-align: center; font-size: 0.7rem; color: #64748b; margin-top: 15px;
-    }
-    .footer-credit a { color: var(--accent); text-decoration: none; font-weight: 600; }
-    .footer-credit a:hover { text-decoration: underline; }
-
-    /* Report Modal */
+    /* Modals */
     .modal-overlay {
       position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 200;
       display: none; align-items: center; justify-content: center; backdrop-filter: blur(5px);
     }
     .modal-content {
-      background: var(--panel); width: 95%; max-width: 1100px; max-height: 95vh;
+      background: var(--panel); width: 95%; max-width: 900px; max-height: 90vh;
       border: 1px solid var(--border); border-radius: 12px; padding: 24px;
-      overflow-y: auto; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5);
+      box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5); overflow-y: auto;
     }
+    
+    /* Validation Rows */
+    .valid-row { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid var(--border); align-items: center; font-size: 0.85rem; }
+    .pass { color: var(--success); font-weight: bold; background: rgba(34, 197, 94, 0.1); padding: 4px 8px; border-radius: 4px; }
+    .fail { color: var(--danger); font-weight: bold; background: rgba(239, 68, 68, 0.1); padding: 4px 8px; border-radius: 4px; }
+    .warn { color: var(--warn); font-weight: bold; background: rgba(245, 158, 11, 0.1); padding: 4px 8px; border-radius: 4px; }
+
+    /* Footer Info Toggles */
+    .footer-section { margin-top: auto; padding-top: 15px; border-top: 1px solid var(--border); }
+    .info-toggle {
+      background: none; border: none; color: #94a3b8; font-size: 0.75rem; 
+      cursor: pointer; width: 100%; text-align: left; padding: 6px 0;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .info-toggle:hover { color: var(--accent); }
+    .info-box { display: none; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; font-size: 0.7rem; color: #cbd5e1; margin-bottom: 10px; border-left: 2px solid var(--accent); }
+    .info-box ul { margin: 0; padding-left: 15px; }
+    .info-box li { margin-bottom: 5px; }
+
+    .footer-credit { text-align: center; font-size: 0.7rem; color: #64748b; margin-top: 15px; }
+    .footer-credit a { color: var(--accent); text-decoration: none; font-weight: 600; }
+
+    /* Live Metrics */
+    .metrics-panel { position: absolute; top: 20px; left: 20px; width: 220px; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(4px); padding: 12px; border-radius: 8px; border: 1px solid var(--border); font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; pointer-events: none; user-select: none; z-index: 10; }
+    .metric-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+    .val { color: var(--accent); font-weight: bold; }
+
+    /* Tables */
     .report-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.85rem; }
     .report-table th, .report-table td { border: 1px solid var(--border); padding: 8px; text-align: center; }
     .report-table th { background: #334155; color: #fff; text-transform: uppercase; font-size: 0.75rem; }
     .report-table tr:nth-child(even) { background: #1e293b; }
-    
-    /* Loading */
-    #loadingScreen {
-      position: fixed; inset: 0; background: var(--bg); z-index: 9999;
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-    }
+
+    /* Loading & Progress */
+    #loadingScreen { position: fixed; inset: 0; background: var(--bg); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
     .spinner { width: 40px; height: 40px; border: 4px solid #334155; border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
+    #calibProgress { width: 100%; height: 6px; background: #334155; border-radius: 3px; margin-top: 5px; overflow: hidden; display: none; }
+    #calibBar { width: 0%; height: 100%; background: var(--success); transition: width 0.1s linear; }
 
   </style>
 
   <script type="importmap">
-    {
-      "imports": {
-        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
-        "@mediapipe/tasks-vision": "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.9/+esm"
-      }
-    }
+    { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/", "@mediapipe/tasks-vision": "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.9/+esm" } }
   </script>
 </head>
 <body>
@@ -132,7 +120,7 @@
 
   <div class="app-container">
     <header class="header">
-      <h1>BioGait 3D <span style="font-size:0.7em; color:#64748b; margin-left:5px;">Full Kinematics</span></h1>
+      <h1>BioGait 3D <span style="font-size:0.7em; color:#64748b; margin-left:5px;">Gold Master v4.2</span></h1>
       <div id="statusBadge" class="status-badge">SYSTEM LOADING</div>
     </header>
 
@@ -147,7 +135,13 @@
       </div>
 
       <div>
-        <div class="section-title">2. Static Calibration</div>
+        <div class="section-title">2. System Validity</div>
+        <p style="font-size:0.7rem; color:#94a3b8; margin-bottom:8px;">Run "Ground Truth" checks.</p>
+        <button id="btnValidate" class="btn btn-warn" disabled>✅ Run Validity Check</button>
+      </div>
+
+      <div>
+        <div class="section-title">3. Calibration</div>
         <p style="font-size:0.7rem; color:#94a3b8; margin-bottom:8px;">Stand T-Pose. 3s Countdown.</p>
         <button id="btnCalibrate" class="btn btn-success" disabled>Start Calibration</button>
         <div id="calibProgress"><div id="calibBar"></div></div>
@@ -157,10 +151,10 @@
       </div>
 
       <div>
-        <div class="section-title">3. Analysis</div>
+        <div class="section-title">4. Acquisition</div>
         <button id="btnRecord" class="btn btn-danger" disabled>Start Walking</button>
         <button id="btnStop" class="btn btn-secondary" disabled>Stop & Report</button>
-        <button id="btnReset" class="btn btn-secondary" disabled>Reset Data</button>
+        <button id="btnReset" class="btn btn-secondary" disabled>Reset</button>
       </div>
 
       <div style="margin-top:10px;">
@@ -168,40 +162,23 @@
       </div>
 
       <div class="footer-section">
-        <button id="btnCamPrep" class="info-toggle">
-          📷 Camera Prep & Setup <span style="font-size:0.6rem">▼</span>
-        </button>
-        <div id="camPrepContent" class="info-box">
-          <ul>
-            <li><strong>Position:</strong> Place camera at hip height (~1m), 90° to walking path (Sagittal view).</li>
-            <li><strong>Distance:</strong> Ensure full body visibility (head-to-toe) throughout the walk (3-5m).</li>
-            <li><strong>Lighting:</strong> Use bright, even lighting. Avoid backlighting.</li>
-            <li><strong>Clothing:</strong> Wear tight-fitting clothes. Loose pants reduce accuracy.</li>
-            <li><strong>Stability:</strong> Use a tripod. Do not hold by hand.</li>
-          </ul>
-        </div>
-
-        <button id="btnSpecs" class="info-toggle">
-          ℹ️ System Specs & Validity <span style="font-size:0.6rem">▼</span>
-        </button>
+        <button id="btnSpecs" class="info-toggle">ℹ️ Validity Specs <span style="font-size:0.6rem">▼</span></button>
         <div id="specsContent" class="info-box">
           <ul>
-            <li><strong>Model:</strong> MediaPipe Pose (Full). Deep Learning 3D Estimation.</li>
-            <li><strong>Accuracy:</strong> Mean Per-Joint Error 30-50mm. Angular error typically 3-5° vs Gold Standard.</li>
-            <li><strong>Sensitivity:</strong> Susceptible to loose clothing, poor lighting, and occlusion.</li>
-            <li><strong>Validity:</strong> Valid for gait screening, trend monitoring, and education. NOT for surgical planning.</li>
+            <li><strong>Accuracy:</strong> Mean error 30-50mm vs MoCap.</li>
+            <li><strong>Sensitivity:</strong> Susceptible to loose clothing & occlusion.</li>
+            <li><strong>Validity:</strong> For Screening/Research. NOT for Surgery.</li>
           </ul>
         </div>
+        
+        <button id="btnCamPrep" class="info-toggle">📷 Camera Prep <span style="font-size:0.6rem">▼</span></button>
+        <div id="camPrepContent" class="info-box">
+          <ul><li>Position: Hip height, 90° side view.</li><li>Full body visible. Use Tripod.</li></ul>
+        </div>
 
-        <button id="btnPrivacy" class="info-toggle">
-          🔒 Privacy & Data Security <span style="font-size:0.6rem">▼</span>
-        </button>
+        <button id="btnPrivacy" class="info-toggle">🔒 Privacy <span style="font-size:0.6rem">▼</span></button>
         <div id="privacyContent" class="info-box">
-          <ul>
-            <li><strong>Local Processing:</strong> Analysis happens 100% in your browser (Client-Side). No video is sent to any server.</li>
-            <li><strong>Anonymous:</strong> No personal data is collected or tracked.</li>
-            <li><strong>No Storage:</strong> Videos are not saved. All data is erased when you refresh.</li>
-          </ul>
+          <ul><li>Local Processing only. No cloud storage.</li><li>GDPR Compliant (No PII saved).</li></ul>
         </div>
 
         <div class="footer-credit">
@@ -223,76 +200,29 @@
 
     <div class="video-pip">
       <video id="videoElement" autoplay playsinline muted></video>
-      <div style="position:absolute; bottom:5px; left:5px; font-size:0.7rem; background:rgba(0,0,0,0.6); padding:2px 6px; color:#fff; border-radius:4px;">LIVE FEED</div>
+      <div style="position:absolute; bottom:5px; left:5px; font-size:0.7rem; background:rgba(0,0,0,0.6); padding:2px 6px; color:#fff;">LIVE FEED</div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="valModal">
+    <div class="modal-content">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+        <h2 style="color:var(--accent); margin:0;">System Validity Report (Ground Truth)</h2>
+        <button onclick="document.getElementById('valModal').style.display='none'" style="background:none; border:none; color:#fff; font-size:1.5rem; cursor:pointer;">&times;</button>
+      </div>
+      <div id="valResults">
+        <p style="text-align:center; color:#38bdf8;">Initializing validation battery...</p>
+      </div>
     </div>
   </div>
 
   <div class="modal-overlay" id="reportModal">
-    <div class="modal-content">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:1px solid #334155; padding-bottom:10px;">
+    <div class="modal-content" style="max-width:1000px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
         <h2 style="color:var(--accent); margin:0;">Gait Analysis Report</h2>
         <button onclick="document.getElementById('reportModal').style.display='none'" style="background:none; border:none; color:#fff; font-size:1.5rem; cursor:pointer;">&times;</button>
       </div>
-      
-      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:30px;">
-        <div>
-          <h3 style="color:#fff; font-size:1rem;">Spatio-Temporal Parameters</h3>
-          <table class="report-table">
-            <tr><td>Avg Walking Speed</td><td id="repSpeed" class="val">-</td></tr>
-            <tr><td>Cadence</td><td id="repCadence" class="val">-</td></tr>
-            <tr><td>Step Count</td><td id="repStepsCount" class="val">-</td></tr>
-            <tr><td>Stride Length (Avg)</td><td id="repStride" class="val">-</td></tr>
-          </table>
-        </div>
-        <div>
-          <h3 style="color:#fff; font-size:1rem;">Cycle Info</h3>
-          <table class="report-table">
-            <tr><td>Duration</td><td id="repDuration" class="val">-</td></tr>
-            <tr><td>Detected View</td><td id="repView" class="val">-</td></tr>
-            <tr><td>Calibration Scale</td><td id="repScale" class="val">-</td></tr>
-          </table>
-        </div>
-      </div>
-
-      <h3 style="color:#fff; font-size:1rem; margin-top:30px;">Joint Kinematics (Average Degrees)</h3>
-      <table class="report-table">
-        <thead>
-          <tr>
-            <th>Joint / Phase</th>
-            <th>Initial Contact (IC) <br><span style="font-size:0.7em; color:#94a3b8;">Max Extension</span></th>
-            <th>Mid-Stance (MSt) <br><span style="font-size:0.7em; color:#94a3b8;">Weight Bearing</span></th>
-            <th>Push-Off (PO) <br><span style="font-size:0.7em; color:#94a3b8;">Pre-Swing</span></th>
-            <th>Swing Peak (Sw) <br><span style="font-size:0.7em; color:#94a3b8;">Max Flexion</span></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td style="text-align:left; font-weight:bold;">Right Hip</td>
-            <td id="rh_ic">-</td><td id="rh_mst">-</td><td id="rh_po">-</td><td id="rh_sw">-</td>
-          </tr>
-          <tr>
-            <td style="text-align:left; font-weight:bold;">Left Hip</td>
-            <td id="lh_ic">-</td><td id="lh_mst">-</td><td id="lh_po">-</td><td id="lh_sw">-</td>
-          </tr>
-          <tr>
-            <td style="text-align:left; font-weight:bold;">Right Knee</td>
-            <td id="rk_ic">-</td><td id="rk_mst">-</td><td id="rk_po">-</td><td id="rk_sw">-</td>
-          </tr>
-          <tr>
-            <td style="text-align:left; font-weight:bold;">Left Knee</td>
-            <td id="lk_ic">-</td><td id="lk_mst">-</td><td id="lk_po">-</td><td id="lk_sw">-</td>
-          </tr>
-          <tr>
-            <td style="text-align:left; font-weight:bold;">Right Ankle</td>
-            <td id="ra_ic">-</td><td id="ra_mst">-</td><td id="ra_po">-</td><td id="ra_sw">-</td>
-          </tr>
-          <tr>
-            <td style="text-align:left; font-weight:bold;">Left Ankle</td>
-            <td id="la_ic">-</td><td id="la_mst">-</td><td id="la_po">-</td><td id="la_sw">-</td>
-          </tr>
-        </tbody>
-      </table>
-      
+      <div id="reportContent"></div>
       <div style="margin-top:20px; text-align:right;">
         <button class="btn btn-primary" style="width:auto; display:inline-block;" onclick="window.downloadCSV()">Download Full CSV Data</button>
       </div>
@@ -306,22 +236,25 @@
 
     const MODEL_PATH = "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task";
     
-    // Global State
-    const state = {
-      calibrated: false,
-      recording: false,
+    // --- STATE MANAGEMENT ---
+    const state = { 
+      calibrated: false, 
+      recording: false, 
+      validating: false, 
       scale: 1.0, 
-      frames: [],
-      calibrationBuffer: []
+      frames: [], 
+      validationBuffer: [], 
+      calibrationBuffer: [] 
     };
-
-    // UI Elements
+    
+    // --- DOM REFERENCES ---
     const els = {
       loading: document.getElementById('loadingScreen'),
       status: document.getElementById('statusBadge'),
       vid: document.getElementById('videoElement'),
       btnCam: document.getElementById('btnCamera'),
       btnCal: document.getElementById('btnCalibrate'),
+      btnVal: document.getElementById('btnValidate'),
       btnRec: document.getElementById('btnRecord'),
       btnStop: document.getElementById('btnStop'),
       btnReset: document.getElementById('btnReset'),
@@ -329,28 +262,27 @@
       lblScale: document.getElementById('lblScale'),
       calBar: document.getElementById('calibBar'),
       calProg: document.getElementById('calibProgress'),
-      modal: document.getElementById('reportModal'),
+      modalReport: document.getElementById('reportModal'),
+      modalVal: document.getElementById('valModal'),
+      valResults: document.getElementById('valResults'),
+      reportContent: document.getElementById('reportContent'),
       dispRK: document.getElementById('dispRK'),
       dispLK: document.getElementById('dispLK'),
       dispRH: document.getElementById('dispRH'),
       dispLH: document.getElementById('dispLH'),
-      // Info
-      btnPrivacy: document.getElementById('btnPrivacy'),
-      privacyContent: document.getElementById('privacyContent'),
-      btnSpecs: document.getElementById('btnSpecs'),
-      specsContent: document.getElementById('specsContent'),
-      btnCamPrep: document.getElementById('btnCamPrep'),
-      camPrepContent: document.getElementById('camPrepContent')
+      // Toggles
+      btnPrivacy: document.getElementById('btnPrivacy'), privacyContent: document.getElementById('privacyContent'),
+      btnSpecs: document.getElementById('btnSpecs'), specsContent: document.getElementById('specsContent'),
+      btnCamPrep: document.getElementById('btnCamPrep'), camPrepContent: document.getElementById('camPrepContent')
     };
 
-    // 3D Variables
     let scene, camera, renderer, controls, poseLandmarker;
     const joints = [], bones = [];
 
     // --- INITIALIZATION ---
     async function init() {
       initThreeJS();
-      setupInfoToggles();
+      setupToggles();
       try {
         const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.9/wasm");
         poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
@@ -358,103 +290,119 @@
           runningMode: "VIDEO",
           numPoses: 1
         });
-        
         els.loading.style.display = 'none';
-        els.status.innerText = "READY";
-        els.status.style.background = "#10b981";
+        els.status.innerText = "READY"; els.status.style.background = "#10b981";
         els.btnCam.disabled = false;
-        
-      } catch (err) {
-        alert("System Init Error: " + err.message);
-      }
+      } catch (err) { alert("Init Error: " + err.message); }
     }
 
     function initThreeJS() {
       const cont = document.getElementById('canvasContainer');
       scene = new THREE.Scene();
-      
-      camera = new THREE.PerspectiveCamera(50, cont.clientWidth / cont.clientHeight, 0.1, 100);
+      camera = new THREE.PerspectiveCamera(50, cont.clientWidth/cont.clientHeight, 0.1, 100);
       camera.position.set(0, 1.2, 3.5);
-
       renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
       renderer.setSize(cont.clientWidth, cont.clientHeight);
       cont.appendChild(renderer.domElement);
-
       controls = new OrbitControls(camera, renderer.domElement);
       controls.target.set(0, 0.9, 0);
       controls.enableDamping = true;
-
-      // Lighting & Grid
       scene.add(new THREE.GridHelper(6, 12, 0x334155, 0x000000));
       const light = new THREE.DirectionalLight(0xffffff, 1.5);
       light.position.set(2, 5, 5);
       scene.add(light);
       scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-
-      // Skeleton Geometry
+      
       const jGeo = new THREE.SphereGeometry(0.04);
       const jMat = new THREE.MeshStandardMaterial({color: 0xffffff});
-      for(let i=0; i<33; i++){
-        const m = new THREE.Mesh(jGeo, jMat.clone());
-        m.visible = false; scene.add(m); joints.push(m);
-      }
-      
+      for(let i=0; i<33; i++){ const m = new THREE.Mesh(jGeo, jMat.clone()); m.visible = false; scene.add(m); joints.push(m); }
       const bGeo = new THREE.CylinderGeometry(0.015, 0.015, 1);
       const bMat = new THREE.MeshStandardMaterial({color: 0x94a3b8});
-      PoseLandmarker.POSE_CONNECTIONS.forEach(c => {
-        const m = new THREE.Mesh(bGeo, bMat.clone());
-        m.visible = false; scene.add(m); bones.push({mesh: m, s: c.start, e: c.end});
-      });
-
-      const animate = () => {
-        requestAnimationFrame(animate);
-        controls.update();
-        renderer.render(scene, camera);
-      };
+      PoseLandmarker.POSE_CONNECTIONS.forEach(c => { const m = new THREE.Mesh(bGeo, bMat.clone()); m.visible = false; scene.add(m); bones.push({mesh: m, s: c.start, e: c.end}); });
+      
+      const animate = () => { requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera); };
       animate();
     }
 
-    function setupInfoToggles() {
-      const toggle = (btn, content) => {
-        btn.addEventListener('click', () => {
-          const d = content.style.display;
-          content.style.display = (d === 'block' ? 'none' : 'block');
-        });
-      };
-      toggle(els.btnPrivacy, els.privacyContent);
-      toggle(els.btnSpecs, els.specsContent);
-      toggle(els.btnCamPrep, els.camPrepContent);
+    function setupToggles() {
+      [ [els.btnPrivacy, els.privacyContent], [els.btnSpecs, els.specsContent], [els.btnCamPrep, els.camPrepContent] ]
+      .forEach(([btn, content]) => btn.addEventListener('click', () => content.style.display = content.style.display === 'block' ? 'none' : 'block'));
     }
 
-    // --- APPLICATION LOGIC ---
-
+    // --- BUTTON ACTIONS ---
     els.btnCam.addEventListener('click', async () => {
       try {
         const s = await navigator.mediaDevices.getUserMedia({video: {width: 1280, height: 720}});
         els.vid.srcObject = s;
         els.vid.onloadeddata = () => {
-          els.btnCam.disabled = true; els.btnCal.disabled = false;
+          els.btnCam.disabled = true; els.btnVal.disabled = false; els.btnCal.disabled = false;
           els.status.innerText = "PREVIEW MODE"; els.status.style.background = "#0ea5e9";
           predictLoop();
         };
-      } catch (e) { alert("Camera Permission Denied"); }
+      } catch (e) { alert("Camera Denied"); }
     });
+
+    els.btnVal.addEventListener('click', () => {
+      state.validationBuffer = [];
+      state.validating = true;
+      els.modalVal.style.display = 'flex';
+      els.valResults.innerHTML = '<p style="color:#38bdf8; text-align:center;">Capturing 5 seconds of data for stability check...<br>Please stand still in T-Pose.</p>';
+      
+      setTimeout(() => {
+        state.validating = false;
+        runValidationChecks();
+      }, 5000);
+    });
+
+    function runValidationChecks() {
+      const data = state.validationBuffer;
+      if (data.length < 30) { els.valResults.innerHTML = "<p class='fail'>Error: Not enough data captured.</p>"; return; }
+      
+      // 1. Noise Check (Std Dev of Hip Z)
+      const hipZs = data.map(d => d[24].z);
+      const meanZ = hipZs.reduce((a,b)=>a+b,0)/hipZs.length;
+      const stdZ = Math.sqrt(hipZs.map(x => Math.pow(x-meanZ,2)).reduce((a,b)=>a+b)/hipZs.length);
+      const noiseScore = stdZ < 0.02 ? "PASS (Low Jitter)" : "FAIL (Too much noise)";
+      const noiseClass = stdZ < 0.02 ? "pass" : "fail";
+
+      // 2. Bone Length Consistency (R_Hip to R_Knee)
+      const femurs = data.map(d => {
+        const h = d[24], k = d[26];
+        return Math.sqrt((h.x-k.x)**2 + (h.y-k.y)**2 + (h.z-k.z)**2);
+      });
+      const meanFemur = femurs.reduce((a,b)=>a+b,0)/femurs.length;
+      const stdFemur = Math.sqrt(femurs.map(x => Math.pow(x-meanFemur,2)).reduce((a,b)=>a+b)/femurs.length);
+      const cvFemur = (stdFemur / meanFemur) * 100;
+      const boneScore = cvFemur < 5 ? "PASS (<5% Var)" : "FAIL (>5% Var)";
+      const boneClass = cvFemur < 5 ? "pass" : "fail";
+
+      // 3. Floor Contact (Lowest Y stability)
+      // Get max Y (lowest point) for each frame
+      const lowestYs = data.map(d => Math.max(d[29].y, d[30].y));
+      const meanLow = lowestYs.reduce((a,b)=>a+b,0)/lowestYs.length;
+      const stdLow = Math.sqrt(lowestYs.map(x => Math.pow(x-meanLow,2)).reduce((a,b)=>a+b)/lowestYs.length);
+      const floorScore = stdLow < 0.02 ? "PASS (Stable)" : "WARN (Floating)";
+      const floorClass = stdLow < 0.02 ? "pass" : "warn";
+
+      els.valResults.innerHTML = `
+        <h3 style="color:#fff; border-bottom:1px solid #334155; padding-bottom:5px;">Ground Truth Report</h3>
+        <div class="valid-row"><span>Signal Stability</span><span class="${noiseClass}">${noiseScore}</span></div>
+        <div class="valid-row"><span>Bone Length Consistency</span><span class="${boneClass}">${boneScore}</span></div>
+        <div class="valid-row"><span>Floor Contact Check</span><span class="${floorClass}">${floorScore}</span></div>
+        <div class="valid-row"><span>Overall Confidence</span><span style="color:#fff">${(100-cvFemur).toFixed(1)}%</span></div>
+        <p style="font-size:0.8rem; margin-top:15px; color:#94a3b8;">* If FAIL: Check lighting, tighter clothes, or camera stability.</p>
+      `;
+    }
 
     els.btnCal.addEventListener('click', async () => {
       els.btnCal.disabled = true;
-      // Countdown
       for(let i=3; i>0; i--) {
-        els.status.innerText = `STARTING IN ${i}...`;
-        els.status.style.background = "#f59e0b";
+        els.status.innerText = `STARTING IN ${i}...`; els.status.style.background = "#f59e0b";
         await new Promise(r => setTimeout(r, 1000));
       }
-      
-      // Capture
       state.calibrationBuffer = [];
-      els.calProg.style.display = 'block';
-      els.calBar.style.width = '0%';
+      els.calProg.style.display = 'block'; els.calBar.style.width = '0%';
       els.status.innerText = "CAPTURING..."; els.status.style.background = "#ef4444";
-      
       let p = 0;
       const interval = setInterval(() => {
         p += 5; els.calBar.style.width = p + "%";
@@ -464,26 +412,19 @@
     });
 
     function finishCalibration() {
-      state.calibrating = false;
-      els.calProg.style.display = 'none';
-      if (state.calibrationBuffer.length < 10) {
-        alert("Calibration Failed. Ensure full body visibility.");
-        els.btnCal.disabled = false;
-        return;
-      }
+      state.calibrating = false; els.calProg.style.display = 'none';
+      if (state.calibrationBuffer.length < 10) { alert("Calibration Failed"); els.btnCal.disabled = false; return; }
       const vals = state.calibrationBuffer.sort((a,b) => a-b);
       const med = vals[Math.floor(vals.length/2)];
       const realH = parseFloat(document.getElementById('inputHeight').value);
       state.scale = realH / med;
-      
       els.lblScale.value = `Scale: ${state.scale.toFixed(3)}`;
       els.btnCal.disabled = true; els.btnRec.disabled = false;
       els.status.innerText = "CALIBRATED"; els.status.style.background = "#10b981";
     }
 
     els.btnRec.addEventListener('click', () => {
-      state.frames = [];
-      state.recording = true;
+      state.frames = []; state.recording = true;
       els.btnRec.disabled = true; els.btnStop.disabled = false; els.btnReset.disabled = true;
       els.status.innerText = "RECORDING..."; els.status.style.background = "#ef4444";
     });
@@ -498,11 +439,11 @@
     els.btnReset.addEventListener('click', () => {
       state.frames = [];
       els.btnRec.disabled = false; els.btnStop.disabled = true; els.btnReset.disabled = true; els.btnExp.disabled = true;
-      els.modal.style.display = 'none';
+      els.modalReport.style.display = 'none';
       els.status.innerText = "READY"; els.status.style.background = "#10b981";
     });
 
-    // --- MAIN LOOP ---
+    // --- LOOP & PREDICTION ---
     let lastT = -1;
     function predictLoop() {
       if (els.vid.currentTime !== lastT) {
@@ -512,29 +453,15 @@
           const lm = res.worldLandmarks[0];
           drawSkeleton(lm);
           
-          if (state.calibrating) {
-            const h = Math.abs(lm[0].y - (lm[27].y + lm[28].y)/2);
-            state.calibrationBuffer.push(h);
-          }
-          
+          if (state.validating) state.validationBuffer.push(lm);
+          if (state.calibrating) state.calibrationBuffer.push(Math.abs(lm[0].y - (lm[27].y+lm[28].y)/2));
           if (state.recording) {
-            const rK = getAngle(lm[24], lm[26], lm[28]);
-            const lK = getAngle(lm[23], lm[25], lm[27]);
-            const rH = getAngle(lm[12], lm[24], lm[26]);
-            const lH = getAngle(lm[11], lm[23], lm[25]);
-            const rA = getAngle(lm[26], lm[28], lm[32]);
-            const lA = getAngle(lm[25], lm[27], lm[31]);
-            
-            state.frames.push({
-              t: els.vid.currentTime,
-              lm: JSON.parse(JSON.stringify(lm)),
-              ang: { rK, lK, rH, lH, rA, lA }
-            });
-
-            els.dispRK.innerText = rK.toFixed(0) + "°";
-            els.dispLK.innerText = lK.toFixed(0) + "°";
-            els.dispRH.innerText = rH.toFixed(0) + "°";
-            els.dispLH.innerText = lH.toFixed(0) + "°";
+            const ang = computeAngles(lm);
+            state.frames.push({ t: els.vid.currentTime, lm: JSON.parse(JSON.stringify(lm)), ang });
+            els.dispRK.innerText = ang.rK.toFixed(0) + "°";
+            els.dispLK.innerText = ang.lK.toFixed(0) + "°";
+            els.dispRH.innerText = ang.rH.toFixed(0) + "°";
+            els.dispLH.innerText = ang.lH.toFixed(0) + "°";
           }
         }
       }
@@ -546,9 +473,7 @@
       for (let i=0; i<33; i++) {
         joints[i].position.set(lm[i].x*s, -lm[i].y*s + (state.calibrated ? 1 : 0), -lm[i].z*s);
         joints[i].visible = true;
-        let c = 0xffffff;
-        if (i > 10) c = (i % 2 !== 0) ? 0x0ea5e9 : 0xef4444;
-        joints[i].material.color.setHex(c);
+        joints[i].material.color.setHex((i>10 && i%2!==0) ? 0x0ea5e9 : (i>10?0xef4444:0xffffff));
       }
       bones.forEach(b => {
         const p1 = joints[b.s].position, p2 = joints[b.e].position;
@@ -559,177 +484,102 @@
       });
     }
 
-    function getAngle(a, b, c) {
-      const v1 = {x:a.x-b.x, y:a.y-b.y, z:a.z-b.z};
-      const v2 = {x:c.x-b.x, y:c.y-b.y, z:c.z-b.z};
-      const dot = v1.x*v2.x + v1.y*v2.y + v1.z*v2.z;
-      const mag = Math.sqrt(v1.x**2 + v1.y**2 + v1.z**2) * Math.sqrt(v2.x**2 + v2.y**2 + v2.z**2);
-      return 180 - (Math.acos(dot/mag) * 180/Math.PI);
+    function computeAngles(lm) {
+      const getA = (a,b,c) => {
+        const v1={x:a.x-b.x,y:a.y-b.y,z:a.z-b.z}, v2={x:c.x-b.x,y:c.y-b.y,z:c.z-b.z};
+        const dot = v1.x*v2.x+v1.y*v2.y+v1.z*v2.z;
+        const m = Math.sqrt(v1.x**2+v1.y**2+v1.z**2) * Math.sqrt(v2.x**2+v2.y**2+v2.z**2);
+        return 180 - (Math.acos(dot/m)*180/Math.PI);
+      };
+      return {
+        rK: getA(lm[24],lm[26],lm[28]), lK: getA(lm[23],lm[25],lm[27]),
+        rH: getA(lm[12],lm[24],lm[26]), lH: getA(lm[11],lm[23],lm[25]),
+        rA: getA(lm[26],lm[28],lm[32]), lA: getA(lm[25],lm[27],lm[31])
+      };
     }
 
-    // --- ANALYSIS ---
     function performAnalysis() {
-      const fr = state.frames;
-      if (fr.length < 30) { alert("Recording too short (<1s)"); return; }
-      const s = state.scale;
-
-      const separation = fr.map(f => Math.abs(f.lm[27].x - f.lm[28].x));
+      const fr = state.frames, s = state.scale;
+      if (fr.length < 30) { alert("Recording too short"); return; }
       
+      const sep = fr.map(f => Math.abs(f.lm[27].x - f.lm[28].x));
       const smoothSep = [];
-      for(let i=0; i<separation.length; i++) {
+      for(let i=0; i<sep.length; i++) {
         let sum=0, cnt=0;
-        for(let j=Math.max(0,i-3); j<=Math.min(separation.length-1,i+3); j++){
-          sum+=separation[j]; cnt++;
-        }
+        for(let j=Math.max(0,i-3); j<=Math.min(sep.length-1,i+3); j++){ sum+=sep[j]; cnt++; }
         smoothSep.push(sum/cnt);
       }
 
       const peaks = [];
-      const threshold = 0.15; 
-      const minFrameDist = 15;
-
-      for(let i=1; i<smoothSep.length-1; i++) {
-        if (smoothSep[i] > smoothSep[i-1] && smoothSep[i] > smoothSep[i+1]) {
-          if (smoothSep[i] > threshold) {
-             if (peaks.length === 0 || (i - peaks[peaks.length-1]) > minFrameDist) {
-               peaks.push(i);
-             }
-          }
+      for(let i=2; i<smoothSep.length-2; i++) {
+        if (smoothSep[i]>smoothSep[i-1] && smoothSep[i]>smoothSep[i+1] && smoothSep[i]>0.15) {
+          if(!peaks.length || (i-peaks[peaks.length-1])>15) peaks.push(i);
         }
       }
-
+      
       const steps = peaks.length;
-      if (steps < 2) { alert("Not enough steps detected."); return; }
-      
-      const duration = fr[fr.length-1].t - fr[0].t;
-      const cadence = (steps / (duration/60)); 
-      const strideLens = peaks.map(i => smoothSep[i] * s);
-      const avgStride = strideLens.reduce((a,b)=>a+b,0) / steps * 2; 
-      const avgSpeed = (steps * (avgStride/2)) / duration;
+      const dur = fr[fr.length-1].t - fr[0].t;
+      const cad = steps > 0 ? (steps / (dur/60)) : 0;
+      const stride = steps > 0 ? (peaks.map(i => smoothSep[i]*s).reduce((a,b)=>a+b,0)/steps * 2) : 0;
+      const spd = (steps * (stride/2)) / dur;
 
-      document.getElementById('repSpeed').innerText = avgSpeed.toFixed(2) + " m/s";
-      document.getElementById('repCadence').innerText = cadence.toFixed(0) + " spm";
-      document.getElementById('repStepsCount').innerText = steps;
-      document.getElementById('repStride').innerText = avgStride.toFixed(2) + " m";
-      document.getElementById('repDuration').innerText = duration.toFixed(1) + " s";
-      document.getElementById('repView').innerText = "Sagittal (Side)";
-      document.getElementById('repScale').innerText = state.scale.toFixed(3);
-
-      const events = {
-        r_ic: [], r_mst: [], r_po: [], r_sw: [],
-        l_ic: [], l_mst: [], l_po: [], l_sw: []
-      };
-
-      peaks.forEach(idx => {
-        const rK = fr[idx].ang.rK;
-        const lK = fr[idx].ang.lK;
-        if (lK < rK) { 
-          events.l_ic.push(idx); events.r_po.push(idx);
-        } else {
-          events.r_ic.push(idx); events.l_po.push(idx);
-        }
+      const ev = { r_ic:[], r_mst:[], r_po:[], r_sw:[], l_ic:[], l_mst:[], l_po:[], l_sw:[] };
+      peaks.forEach(i => {
+        if (fr[i].ang.lK < fr[i].ang.rK) { ev.l_ic.push(i); ev.r_po.push(i); } 
+        else { ev.r_ic.push(i); ev.l_po.push(i); }
       });
-
-      for(let i=0; i<peaks.length-1; i++){
-        let minVal = 999, minIdx = -1;
-        for(let j=peaks[i]; j<peaks[i+1]; j++){
-           if(smoothSep[j] < minVal) { minVal = smoothSep[j]; minIdx = j; }
-        }
-        if(minIdx !== -1) {
-           const rK = fr[peaks[i]].ang.rK;
-           const lK = fr[peaks[i]].ang.lK;
-           if (rK > lK) { 
-             events.r_mst.push(minIdx); events.l_sw.push(minIdx);
-           } else {
-             events.l_mst.push(minIdx); events.r_sw.push(minIdx);
-           }
-        }
+      for(let k=0; k<peaks.length-1; k++) {
+        const m = Math.floor((peaks[k]+peaks[k+1])/2);
+        if (fr[peaks[k]].ang.rK > fr[peaks[k]].ang.lK) { ev.r_mst.push(m); ev.l_sw.push(m); }
+        else { ev.l_mst.push(m); ev.r_sw.push(m); }
       }
 
-      function calcAvg(indices, key) {
-        if (!indices.length) return "-";
-        const sum = indices.reduce((acc, idx) => acc + fr[idx].ang[key], 0);
-        return (sum / indices.length).toFixed(1);
-      }
+      const avg = (arr, k) => !arr.length ? "-" : (arr.reduce((a,x)=>a+fr[x].ang[k],0)/arr.length).toFixed(1);
 
-      document.getElementById('rh_ic').innerText = calcAvg(events.r_ic, 'rH');
-      document.getElementById('rh_mst').innerText = calcAvg(events.r_mst, 'rH');
-      document.getElementById('rh_po').innerText = calcAvg(events.r_po, 'rH');
-      document.getElementById('rh_sw').innerText = calcAvg(events.r_sw, 'rH');
+      let h = `<div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+        <div><h3>Spatio-Temporal</h3><table class="report-table">
+          <tr><td>Speed</td><td class="val">${spd ? spd.toFixed(2) : 0} m/s</td></tr>
+          <tr><td>Cadence</td><td class="val">${cad.toFixed(0)} spm</td></tr>
+          <tr><td>Stride</td><td class="val">${stride.toFixed(2)} m</td></tr>
+        </table></div>
+        <div><h3>Cycle</h3><table class="report-table">
+          <tr><td>Steps</td><td class="val">${steps}</td></tr>
+          <tr><td>Duration</td><td class="val">${dur.toFixed(1)} s</td></tr>
+        </table></div></div>
+        <h3 style="margin-top:20px;">Kinematics (Avg Degrees)</h3>
+        <table class="report-table"><thead><tr><th>Joint</th><th>IC</th><th>MSt</th><th>PO</th><th>Sw</th></tr></thead><tbody>`;
+        
+      const rows = [
+        ['Right Hip', 'rH', 'r'], ['Left Hip', 'lH', 'l'],
+        ['Right Knee', 'rK', 'r'], ['Left Knee', 'lK', 'l'],
+        ['Right Ankle', 'rA', 'r'], ['Left Ankle', 'lA', 'l']
+      ];
       
-      document.getElementById('rk_ic').innerText = calcAvg(events.r_ic, 'rK');
-      document.getElementById('rk_mst').innerText = calcAvg(events.r_mst, 'rK');
-      document.getElementById('rk_po').innerText = calcAvg(events.r_po, 'rK');
-      document.getElementById('rk_sw').innerText = calcAvg(events.r_sw, 'rK');
+      rows.forEach(([name, key, side]) => {
+        h += `<tr><td><strong>${name}</strong></td>
+          <td>${avg(ev[side+'_ic'], key)}</td><td>${avg(ev[side+'_mst'], key)}</td>
+          <td>${avg(ev[side+'_po'], key)}</td><td>${avg(ev[side+'_sw'], key)}</td></tr>`;
+      });
+      h += `</tbody></table>`;
 
-      document.getElementById('ra_ic').innerText = calcAvg(events.r_ic, 'rA');
-      document.getElementById('ra_mst').innerText = calcAvg(events.r_mst, 'rA');
-      document.getElementById('ra_po').innerText = calcAvg(events.r_po, 'rA');
-      document.getElementById('ra_sw').innerText = calcAvg(events.r_sw, 'rA');
-
-      document.getElementById('lh_ic').innerText = calcAvg(events.l_ic, 'lH');
-      document.getElementById('lh_mst').innerText = calcAvg(events.l_mst, 'lH');
-      document.getElementById('lh_po').innerText = calcAvg(events.l_po, 'lH');
-      document.getElementById('lh_sw').innerText = calcAvg(events.l_sw, 'lH');
-
-      document.getElementById('lk_ic').innerText = calcAvg(events.l_ic, 'lK');
-      document.getElementById('lk_mst').innerText = calcAvg(events.l_mst, 'lK');
-      document.getElementById('lk_po').innerText = calcAvg(events.l_po, 'lK');
-      document.getElementById('lk_sw').innerText = calcAvg(events.l_sw, 'lK');
-
-      document.getElementById('la_ic').innerText = calcAvg(events.l_ic, 'lA');
-      document.getElementById('la_mst').innerText = calcAvg(events.l_mst, 'lA');
-      document.getElementById('la_po').innerText = calcAvg(events.l_po, 'lA');
-      document.getElementById('la_sw').innerText = calcAvg(events.l_sw, 'lA');
-
-      els.modal.style.display = 'flex';
+      els.reportContent.innerHTML = h;
+      els.modalReport.style.display = 'flex';
     }
 
-    // CSV EXPORT UPDATED
     window.downloadCSV = function() {
       if(!state.frames.length) return;
-      
-      // Header including 3D coordinates for Hip, Knee, Ankle, Heel
       let c = "Time,Sep_m,RHip_Ang,LHip_Ang,RKnee_Ang,LKnee_Ang,RAnk_Ang,LAnk_Ang," +
-              "RHip_X,RHip_Y,RHip_Z,LHip_X,LHip_Y,LHip_Z," +
-              "RKnee_X,RKnee_Y,RKnee_Z,LKnee_X,LKnee_Y,LKnee_Z," +
-              "RAnk_X,RAnk_Y,RAnk_Z,LAnk_X,LAnk_Y,LAnk_Z," + 
-              "RHeel_X,RHeel_Y,RHeel_Z,LHeel_X,LHeel_Y,LHeel_Z\n";
-              
-      const s = state.scale;
-      const fmt = (v) => (v * s).toFixed(3);
-      const fmtY = (v) => (-v * s).toFixed(3); // Invert Y to match visual up/down
-      const fmtZ = (v) => (-v * s).toFixed(3); // Invert Z to match visual depth
-
-      state.frames.forEach(f => {
-        const sep = Math.abs(f.lm[27].x - f.lm[28].x) * s;
-        const lm = f.lm;
-        
-        c += `${f.t.toFixed(3)},${sep.toFixed(3)},` + 
-             `${f.ang.rH.toFixed(1)},${f.ang.lH.toFixed(1)},` + 
-             `${f.ang.rK.toFixed(1)},${f.ang.lK.toFixed(1)},` +
-             `${f.ang.rA.toFixed(1)},${f.ang.lA.toFixed(1)},` +
-             
-             // Hips (24, 23)
-             `${fmt(lm[24].x)},${fmtY(lm[24].y)},${fmtZ(lm[24].z)},` +
-             `${fmt(lm[23].x)},${fmtY(lm[23].y)},${fmtZ(lm[23].z)},` +
-             
-             // Knees (26, 25)
-             `${fmt(lm[26].x)},${fmtY(lm[26].y)},${fmtZ(lm[26].z)},` +
-             `${fmt(lm[25].x)},${fmtY(lm[25].y)},${fmtZ(lm[25].z)},` +
-             
-             // Ankles (28, 27)
-             `${fmt(lm[28].x)},${fmtY(lm[28].y)},${fmtZ(lm[28].z)},` +
-             `${fmt(lm[27].x)},${fmtY(lm[27].y)},${fmtZ(lm[27].z)},` +
-             
-             // Heels (30, 29) - Useful for Strike
-             `${fmt(lm[30].x)},${fmtY(lm[30].y)},${fmtZ(lm[30].z)},` +
-             `${fmt(lm[29].x)},${fmtY(lm[29].y)},${fmtZ(lm[29].z)}\n`;
+              "RHip_X,RHip_Y,RHip_Z,LHip_X,LHip_Y,LHip_Z,RKnee_X,RKnee_Y,RKnee_Z,LKnee_X,LKnee_Y,LKnee_Z," +
+              "RAnk_X,RAnk_Y,RAnk_Z,LAnk_X,LAnk_Y,LAnk_Z,RHeel_X,RHeel_Y,RHeel_Z,LHeel_X,LHeel_Y,LHeel_Z\n";
+      const s = state.scale, f = (v)=> (v*s).toFixed(3), fy = (v)=> (-v*s).toFixed(3), fz = (v)=> (-v*s).toFixed(3);
+      state.frames.forEach(fr => {
+        const lm = fr.lm, sep = Math.abs(lm[27].x-lm[28].x)*s;
+        c += `${fr.t.toFixed(3)},${sep.toFixed(3)},${fr.ang.rH.toFixed(1)},${fr.ang.lH.toFixed(1)},${fr.ang.rK.toFixed(1)},${fr.ang.lK.toFixed(1)},${fr.ang.rA.toFixed(1)},${fr.ang.lA.toFixed(1)},`;
+        [24,23,26,25,28,27,30,29].forEach(i => c += `${f(lm[i].x)},${fy(lm[i].y)},${fz(lm[i].z)},`);
+        c = c.slice(0,-1) + "\n";
       });
-      
-      const b = new Blob([c], {type:'text/csv'});
-      const u = URL.createObjectURL(b);
-      const a = document.createElement('a'); a.href=u; a.download=`biogait_full_3d_${Date.now()}.csv`; a.click();
+      const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([c], {type:'text/csv'}));
+      a.download = `biogait_full_3d_${Date.now()}.csv`; a.click();
     }
 
     init();
