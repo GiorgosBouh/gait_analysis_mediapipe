@@ -1,12 +1,6 @@
 // pose.js
-// MediaPipe Pose (Tasks Vision) helper for in-browser gait analysis
-// ✅ Uses modelAssetBuffer (fetch -> ArrayBuffer) to avoid WASM "Unable to get file size" failures
-// ✅ Resolves model URL relative to this file via import.meta.url
-// ✅ Keeps exports expected by app.js: createPoseLandmarker, POSE_LANDMARK_NAMES, POSE_CONNECTIONS, LANDMARK_INDEX
-
 import { PoseLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.9";
 
-// ---- Landmark names / indices ----
 export const POSE_LANDMARK_NAMES = [
   "nose",
   "left_eye_inner", "left_eye", "left_eye_outer",
@@ -30,8 +24,6 @@ export const LANDMARK_INDEX = Object.fromEntries(
   POSE_LANDMARK_NAMES.map((name, idx) => [name, idx])
 );
 
-// ---- Simple skeleton connections (name -> name) ----
-// Keep this stable; app.js draws using these names + LANDMARK_INDEX.
 export const POSE_CONNECTIONS = [
   ["left_shoulder", "right_shoulder"],
   ["left_hip", "right_hip"],
@@ -58,52 +50,62 @@ export const POSE_CONNECTIONS = [
   ["nose", "right_shoulder"],
 ];
 
-// ---- Internal singleton ----
 let poseLandmarker = null;
 
-// ---- Helpers ----
-async function fetchAsArrayBuffer(url) {
-  const res = await fetch(url, { cache: "no-store" });
+async function fetchArrayBufferWithFallback(url) {
+  // 1) Normal fetch
+  let res = await fetch(url, {
+    cache: "reload",
+    credentials: "omit",
+  });
 
   if (!res.ok) {
     throw new Error(`Model fetch failed: ${url} (HTTP ${res.status})`);
   }
 
-  const buf = await res.arrayBuffer();
+  let buf = await res.arrayBuffer();
 
-  // A .task model should be much larger than a tiny HTML error page.
+  // If GitHub Pages / caching returns empty body, try Range request as fallback
+  if (!buf || buf.byteLength === 0) {
+    console.warn("[Pose] Model fetch returned 0 bytes. Retrying with Range…");
+
+    res = await fetch(url, {
+      cache: "reload",
+      credentials: "omit",
+      headers: { Range: "bytes=0-" },
+    });
+
+    if (!res.ok && res.status !== 206) {
+      throw new Error(`Model range fetch failed: ${url} (HTTP ${res.status})`);
+    }
+
+    buf = await res.arrayBuffer();
+  }
+
   if (!buf || buf.byteLength < 1024 * 100) {
-    throw new Error(`Model fetch suspicious size (${buf?.byteLength} bytes): ${url}`);
+    throw new Error(`Model fetch suspicious size (${buf?.byteLength ?? 0} bytes): ${url}`);
   }
 
   return buf;
 }
 
-// ---- Public API expected by app.js ----
 export async function createPoseLandmarker() {
   if (poseLandmarker) return poseLandmarker;
 
-  // WASM runtime base (CDN)
   const wasmBase = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.9/wasm";
 
-  // Resolve model URL relative to THIS file (robust on GitHub Pages subpaths)
-  // IMPORTANT: if pose.js lives under /assets/, this resolves to /assets/models/...
-  // So keep pose.js at same level as models/, OR adjust the relative path below accordingly.
+  // IMPORTANT: resolve relative to THIS file
   const modelUrl = new URL("./models/pose_landmarker_lite.task", import.meta.url).toString();
 
   console.log("[Pose] pose.js URL:", import.meta.url);
   console.log("[Pose] resolved model URL:", modelUrl);
-  console.log("[Pose] wasm base:", wasmBase);
 
-  // ✅ Load model into memory to bypass WASM "Unable to get file size" / external_file_handler issues
-  const modelAssetBuffer = await fetchAsArrayBuffer(modelUrl);
+  const modelAssetBuffer = await fetchArrayBufferWithFallback(modelUrl);
 
   const vision = await FilesetResolver.forVisionTasks(wasmBase);
 
   poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
-    baseOptions: {
-      modelAssetBuffer, // ✅ key fix
-    },
+    baseOptions: { modelAssetBuffer },
     runningMode: "VIDEO",
     numPoses: 1,
   });
