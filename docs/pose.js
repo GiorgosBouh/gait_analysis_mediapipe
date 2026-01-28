@@ -1,7 +1,10 @@
 import { PoseLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.9";
 
-// Βρίσκουμε το URL του μοντέλου δυναμικά, με βάση τη θέση του αρχείου pose.js
-const modelAssetPath = new URL("./pose_landmarker_lite.task", import.meta.url).toString();
+// 1. Το τοπικό αρχείο (αυτό που ανέβασες)
+const localModelPath = new URL("./pose_landmarker_lite.task", import.meta.url).toString();
+
+// 2. Το online backup αρχείο (από την Google)
+const googleModelPath = "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task";
 
 export const POSE_LANDMARK_NAMES = [
   "nose", "left_eye_inner", "left_eye", "left_eye_outer",
@@ -21,18 +24,45 @@ export const LANDMARK_INDEX = Object.fromEntries(
 
 export const POSE_CONNECTIONS = PoseLandmarker.POSE_CONNECTIONS;
 
-export async function createPoseLandmarker() {
-  try {
-    console.log("[Pose] Initializing Vision Tasks...");
-    const vision = await FilesetResolver.forVisionTasks(
-      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.9/wasm"
-    );
+// Βοηθητική συνάρτηση για να κατεβάσουμε το αρχείο
+async function loadModelBuffer(url) {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch ${url} - Status: ${response.status}`);
+  }
+  return await response.arrayBuffer();
+}
 
-    console.log(`[Pose] Loading model from: ${modelAssetPath}`);
+export async function createPoseLandmarker() {
+  const vision = await FilesetResolver.forVisionTasks(
+    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.9/wasm"
+  );
+
+  let modelBuffer;
+
+  // Προσπάθεια 1: Τοπικό αρχείο
+  try {
+    console.log(`[Pose] Attempting to load local model: ${localModelPath}`);
+    modelBuffer = await loadModelBuffer(localModelPath);
+    console.log("[Pose] Local model loaded successfully.");
+  } catch (localErr) {
+    console.warn("[Pose] Local model failed (404). Switching to Google Backup...", localErr);
     
+    // Προσπάθεια 2: Google Backup
+    try {
+      modelBuffer = await loadModelBuffer(googleModelPath);
+      console.log("[Pose] Google Backup model loaded successfully.");
+    } catch (googleErr) {
+      alert("CRITICAL ERROR: Could not load AI model. Check internet connection.");
+      throw googleErr;
+    }
+  }
+
+  // Δημιουργία του Landmarker με τα bytes που κατεβάσαμε
+  try {
     const poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
       baseOptions: {
-        modelAssetPath: modelAssetPath,
+        modelAssetBuffer: new Uint8Array(modelBuffer), // Στέλνουμε τα bytes απευθείας
         delegate: "GPU"
       },
       runningMode: "VIDEO",
@@ -42,11 +72,9 @@ export async function createPoseLandmarker() {
       minTrackingConfidence: 0.5,
     });
 
-    console.log("[Pose] Model loaded successfully!");
     return poseLandmarker;
-  } catch (error) {
-    console.error("[Pose] Error creating landmarker:", error);
-    alert("Σφάλμα φόρτωσης μοντέλου. Δες την κονσόλα (F12).");
-    throw error;
+  } catch (createError) {
+    console.error("[Pose] Error initializing Landmarker:", createError);
+    throw createError;
   }
 }
