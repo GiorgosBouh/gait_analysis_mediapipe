@@ -1,6 +1,6 @@
-import { PoseLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.9";
+// pose.js - Stable Version 0.10.0
+import { PoseLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0";
 
-// Σταθερές που χρειάζεται το app.js
 export const POSE_LANDMARK_NAMES = [
   "nose", "left_eye_inner", "left_eye", "left_eye_outer",
   "right_eye_inner", "right_eye", "right_eye_outer",
@@ -19,21 +19,17 @@ export const LANDMARK_INDEX = Object.fromEntries(
 
 export const POSE_CONNECTIONS = PoseLandmarker.POSE_CONNECTIONS;
 
-// Η κύρια συνάρτηση φόρτωσης
 export async function createPoseLandmarker() {
   try {
-    console.log("1. Starting FilesetResolver...");
+    console.log("[Pose] 1. Initializing FilesetResolver (WASM)...");
     const vision = await FilesetResolver.forVisionTasks(
-      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.9/wasm"
+      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
     );
 
-    console.log("2. Loading Model from Google CDN...");
-    // Χρησιμοποιούμε το επίσημο URL της Google
-    const modelUrl = "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task";
-
+    console.log("[Pose] 2. Downloading Model from Google...");
     const poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
       baseOptions: {
-        modelAssetPath: modelUrl,
+        modelAssetPath: `https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task`,
         delegate: "GPU"
       },
       runningMode: "VIDEO",
@@ -43,12 +39,11 @@ export async function createPoseLandmarker() {
       minTrackingConfidence: 0.5,
     });
 
-    console.log("3. Model Loaded Successfully!");
+    console.log("[Pose] 3. Model Loaded Successfully!");
     return poseLandmarker;
-
   } catch (error) {
-    console.error("CRITICAL ERROR IN POSE.JS:", error);
-    alert("Σφάλμα: Το μοντέλο AI δεν φόρτωσε. \n\nΛεπτομέρειες: " + error.message);
+    console.error("[Pose] FAILED:", error);
+    alert(`CRITICAL ERROR: Failed to load AI model.\n${error.message}`);
     throw error;
   }
 }
