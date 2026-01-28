@@ -3,180 +3,329 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Gait Analysis (MediaPipe Pose) — In-Browser</title>
-
-  <link rel="stylesheet" href="./style.css?v=FIX_FINAL" />
+  <title>Gait Analysis - ONE FILE FIX</title>
 
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-  <link rel="preconnect" href="https://storage.googleapis.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap">
+
+  <style>
+    /* --- CSS START --- */
+    :root {
+      --bg: #f8fafc; --card: #ffffff; --text: #0f172a; --muted: #64748b;
+      --primary: #2563eb; --primary-hover: #1d4ed8; --danger: #ef4444;
+      --success: #10b981; --border: #e2e8f0;
+    }
+    body { font-family: "Inter", sans-serif; background: var(--bg); color: var(--text); margin: 0; padding-bottom: 40px; }
+    
+    /* Header & Layout */
+    .site-header { background: var(--card); border-bottom: 1px solid var(--border); padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; }
+    .site-header h1 { margin: 0; font-size: 1.25rem; }
+    .status-pill { background: #fef3c7; color: #92400e; padding: 0.25rem 0.75rem; border-radius: 99px; font-weight: 600; font-size: 0.875rem; }
+    
+    .container { max-width: 1200px; margin: 2rem auto; padding: 0 1rem; display: grid; grid-template-columns: 350px 1fr; gap: 2rem; }
+    @media (max-width: 900px) { .container { grid-template-columns: 1fr; } }
+
+    /* Panels */
+    .panel { background: var(--card); border: 1px solid var(--border); border-radius: 0.75rem; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    
+    /* Controls */
+    .control-group { margin-bottom: 1.5rem; }
+    .label { display: block; font-weight: 600; margin-bottom: 0.5rem; font-size: 0.9rem; }
+    .btn { cursor: pointer; border: none; padding: 0.6rem 1.2rem; border-radius: 0.5rem; font-weight: 600; transition: all 0.2s; }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover:not(:disabled) { background: var(--primary-hover); }
+    .btn-danger { background: var(--danger); color: white; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(1); }
+    
+    input[type="number"], input[type="file"] { width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 0.375rem; }
+    
+    /* Video Area */
+    .video-wrapper { position: relative; background: #000; border-radius: 0.75rem; overflow: hidden; aspect-ratio: 16/9; }
+    video { width: 100%; height: 100%; object-fit: contain; display: block; }
+    canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+
+    /* Error Box */
+    #errorLog { display: none; background: #fee2e2; color: #991b1b; padding: 1rem; margin: 1rem; border-radius: 0.5rem; border: 1px solid #f87171; font-family: monospace; white-space: pre-wrap; }
+    /* --- CSS END --- */
+  </style>
 </head>
-
 <body>
-  <header class="site-header">
-    <div>
-      <h1>Gait Analysis — MediaPipe Pose (Browser)</h1>
-      <p class="subtitle">Pose + gait metrics fully client-side. Webcam or upload, export CSV + metadata.</p>
-    </div>
-    <div class="status-pill" id="appStatus">Initializing…</div>
-  </header>
 
-  <main class="layout">
-    <section class="panel controls">
-      <div class="tabs">
-        <button class="tab active" data-tab="live">Live Capture</button>
-        <button class="tab" data-tab="upload">Upload Video</button>
+  <div class="site-header">
+    <h1>Gait Analysis (All-in-One)</h1>
+    <div id="statusPill" class="status-pill">Initializing...</div>
+  </div>
+
+  <div id="errorLog"></div>
+
+  <div class="container">
+    <section class="panel">
+      <div class="control-group">
+        <span class="label">1. Source</span>
+        <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+          <button id="btnWebcam" class="btn btn-primary" disabled>Start Webcam</button>
+          <button id="btnStop" class="btn btn-danger" disabled>Stop</button>
+        </div>
+        
+        <span class="label">OR Upload Video</span>
+        <input type="file" id="fileUpload" accept="video/*" disabled>
       </div>
 
-      <div class="tab-content active" id="tab-live">
-        <div class="control-row">
-          <label class="control-label">Camera</label>
-          <div class="button-group">
-            <button id="startLive" class="primary">Start</button>
-            <button id="stopLive" class="secondary" disabled>Stop</button>
-          </div>
-        </div>
+      <hr style="border: 0; border-top: 1px solid var(--border); margin: 1.5rem 0;">
+
+      <div class="control-group">
+        <span class="label">2. Calibration Height (m)</span>
+        <input type="number" id="inputHeight" value="1.75" step="0.01">
       </div>
 
-      <div class="tab-content" id="tab-upload">
-        <div class="control-row">
-          <label class="control-label">Video file</label>
-          <input type="file" id="videoFile" accept="video/*" />
-        </div>
-        <div class="control-row">
-          <button id="startUpload" class="primary" disabled>Analyze Upload</button>
-          <button id="stopUpload" class="secondary" disabled>Stop</button>
-        </div>
+      <div class="control-group">
+        <span class="label">3. Export Data</span>
+        <button id="btnExport" class="btn btn-primary" disabled>Download CSV</button>
       </div>
 
-      <hr />
-
-      <div class="control-grid">
-        <div class="control-item">
-          <label for="heightInput">Height (m)</label>
-          <input type="number" id="heightInput" min="1" max="2.3" step="0.01" value="1.75" />
-          <small>Valid range: 1.00–2.30 m</small>
-        </div>
-
-        <div class="control-item">
-          <label for="smoothingWindow">Smoothing window</label>
-          <input type="range" id="smoothingWindow" min="1" max="15" value="5" />
-          <div class="range-value"><span id="smoothingValue">5</span> frames</div>
-        </div>
-
-        <div class="control-item">
-          <label for="inferenceThrottle">Inference throttle</label>
-          <input type="range" id="inferenceThrottle" min="1" max="4" value="1" />
-          <div class="range-value">Every <span id="inferenceValue">1</span> frame</div>
-        </div>
-
-        <div class="control-item">
-          <label>Pose overlay</label>
-          <label class="switch">
-            <input type="checkbox" id="toggleOverlay" checked />
-            <span class="slider"></span>
-          </label>
-        </div>
-
-        <div class="control-item">
-          <label>Auto-calibrate</label>
-          <label class="switch">
-            <input type="checkbox" id="autoCalibrate" checked />
-            <span class="slider"></span>
-          </label>
-          <button id="calibrateNow" class="secondary">Calibrate now</button>
-        </div>
-      </div>
-
-      <div class="export-row">
-        <button id="exportCsv" class="primary" disabled>Λήψη αρχείου CSV</button>
-        <button id="exportMeta" class="secondary" disabled>Λήψη αρχείου JSON</button>
-      </div>
-
-      <div class="status-box" id="statusBox">
-        <h3>Status</h3>
-        <ul>
-          <li><strong>Calibration:</strong> <span id="calibrationStatus">Not started</span></li>
-          <li><strong>Scale:</strong> <span id="scaleStatus">—</span></li>
-          <li><strong>Body visibility:</strong> <span id="visibilityStatus">—</span></li>
-          <li><strong>Warnings:</strong> <span id="warningStatus">None</span></li>
-        </ul>
-      </div>
-
-      <div class="results-box">
-        <h3>Results summary</h3>
-        <div class="results-grid">
-          <div>
-            <div class="result-label">Avg step length (m)</div>
-            <div class="result-value" id="avgStepLength">—</div>
-          </div>
-          <div>
-            <div class="result-label">Avg step width (m)</div>
-            <div class="result-value" id="avgStepWidth">—</div>
-          </div>
-          <div>
-            <div class="result-label">Avg COM speed (m/s)</div>
-            <div class="result-value" id="avgComSpeed">—</div>
-          </div>
-          <div>
-            <div class="result-label">Cadence (steps/min)</div>
-            <div class="result-value" id="cadenceValue">—</div>
-          </div>
-        </div>
+      <div style="background: #f1f5f9; padding: 1rem; border-radius: 0.5rem; font-size: 0.9rem;">
+        <div><strong>Status:</strong> <span id="txtStatus">Waiting for model...</span></div>
+        <div><strong>Scale:</strong> <span id="txtScale">-</span></div>
+        <div><strong>Step Length:</strong> <span id="txtStep">-</span> m</div>
       </div>
     </section>
 
-    <section class="panel preview">
+    <section class="panel">
       <div class="video-wrapper">
-        <video id="video" autoplay muted playsinline></video>
-        <canvas id="overlay"></canvas>
+        <video id="videoEl" autoplay playsinline muted></video>
+        <canvas id="canvasEl"></canvas>
       </div>
-
-      <div class="charts">
-        <div class="chart-card">
-          <h3>Step length over time</h3>
-          <canvas id="stepChart" width="600" height="240"></canvas>
-        </div>
-        <div class="chart-card">
-          <h3>COM speed over time</h3>
-          <canvas id="comChart" width="600" height="240"></canvas>
-        </div>
-      </div>
+      <p style="font-size: 0.85rem; color: var(--muted); margin-top: 0.5rem;">
+        * For mobile: ensure your switch isn't on "Silent Mode" if video doesn't play automatically.
+      </p>
     </section>
-  </main>
+  </div>
 
-  <section class="panel info">
-    <h2>How to record for best results (Οδηγίες λήψης)</h2>
-    <div class="info-grid">
-      <div>
-        <h4>Camera placement</h4>
-        <ul>
-          <li>Προτιμήστε πλάγια όψη (profil) για καθαρό μήκος βήματος.</li>
-          <li>Ύψος κάμερας περίπου στο ύψος των ισχίων (0.9–1.1 m).</li>
-          <li>Σταθερό τρίποδο, χωρίς κραδασμούς.</li>
-          <li>Ολόκληρο το σώμα (κεφάλι–πόδια) ορατό συνεχώς.</li>
-          <li>Σταθερή απόσταση, αποφύγετε κίνηση προς/μακριά από την κάμερα.</li>
-        </ul>
-      </div>
-      <div>
-        <h4>Protocol</h4>
-        <ul>
-          <li>Σταθείτε ακίνητοι 1–2 δευτερόλεπτα στην αρχή (για βαθμονόμηση).</li>
-          <li>Περπατήστε ευθεία μέσα στο κάδρο.</li>
-          <li>Ελάχιστο 6 βήματα, προτεινόμενα 8–12.</li>
-        </ul>
-        <h4>Lighting</h4>
-        <ul>
-          <li>Καλός φωτισμός, αποφύγετε έντονο backlight.</li>
-        </ul>
-      </div>
-    </div>
-  </section>
+  <script type="module">
+    // --- 0. ERROR HANDLING (Visual) ---
+    const errorLog = document.getElementById("errorLog");
+    window.onerror = function(msg, source, lineno, colno, error) {
+      errorLog.style.display = "block";
+      errorLog.innerText += `Error: ${msg}\nLine: ${lineno}\n\n`;
+      return false;
+    };
+    window.addEventListener("unhandledrejection", (e) => {
+      errorLog.style.display = "block";
+      errorLog.innerText += `Async Error: ${e.reason}\n\n`;
+    });
 
-  <footer class="site-footer">
-    <p><strong>Privacy:</strong> Processing happens locally in your browser; no videos are stored or uploaded.</p>
-    <p>Exports include normalized landmarks, pixel coordinates, calibrated 2D meters (when available), and 3D world landmarks. World landmarks are in meters relative to the pelvis/hips (body-centric), not absolute camera/world position.</p>
-  </footer>
+    // --- 1. IMPORTS (Direct from CDN) ---
+    import { PoseLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0";
 
-  <script type="module" src="./app.js?v=FIX_FINAL"></script>
+    // --- 2. STATE & DOM ---
+    const dom = {
+      statusPill: document.getElementById("statusPill"),
+      btnWebcam: document.getElementById("btnWebcam"),
+      btnStop: document.getElementById("btnStop"),
+      fileUpload: document.getElementById("fileUpload"),
+      btnExport: document.getElementById("btnExport"),
+      inputHeight: document.getElementById("inputHeight"),
+      video: document.getElementById("videoEl"),
+      canvas: document.getElementById("canvasEl"),
+      txtStatus: document.getElementById("txtStatus"),
+      txtScale: document.getElementById("txtScale"),
+      txtStep: document.getElementById("txtStep"),
+    };
+
+    let poseLandmarker = null;
+    let running = false;
+    let requestAnimId = null;
+    let lastVideoTime = -1;
+    let dataLog = [];
+    let calibration = { samples: [], scale: null };
+
+    // --- 3. INITIALIZATION ---
+    async function init() {
+      try {
+        dom.statusPill.innerText = "Loading Model...";
+        dom.statusPill.style.background = "#fef3c7";
+
+        const vision = await FilesetResolver.forVisionTasks(
+          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
+        );
+
+        poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath: `https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task`,
+            delegate: "GPU"
+          },
+          runningMode: "VIDEO",
+          numPoses: 1
+        });
+
+        // UNLOCK UI
+        dom.statusPill.innerText = "System Ready";
+        dom.statusPill.style.background = "#dcfce7"; 
+        dom.statusPill.style.color = "#166534";
+        
+        dom.btnWebcam.disabled = false;
+        dom.fileUpload.disabled = false;
+        dom.txtStatus.innerText = "Model Loaded. Ready to start.";
+        
+        console.log("Model Loaded Successfully");
+
+      } catch (err) {
+        console.error(err);
+        dom.statusPill.innerText = "Error";
+        dom.statusPill.style.background = "#fee2e2";
+        alert("Failed to load AI Model. See error log at top of page.");
+      }
+    }
+
+    // --- 4. CONTROLS ---
+    dom.btnWebcam.addEventListener("click", async () => {
+      resetSession();
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        dom.video.srcObject = stream;
+        dom.video.addEventListener("loadeddata", predictWebcam);
+        running = true;
+        updateButtons(true);
+      } catch (err) {
+        alert("Camera not found or permission denied.");
+      }
+    });
+
+    dom.fileUpload.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      resetSession();
+      const url = URL.createObjectURL(file);
+      dom.video.srcObject = null;
+      dom.video.src = url;
+      dom.video.play();
+      dom.video.addEventListener("loadeddata", predictWebcam);
+      running = true;
+      updateButtons(true);
+    });
+
+    dom.btnStop.addEventListener("click", () => {
+      running = false;
+      if (dom.video.srcObject) {
+        dom.video.srcObject.getTracks().forEach(t => t.stop());
+      }
+      dom.video.pause();
+      updateButtons(false);
+    });
+
+    dom.btnExport.addEventListener("click", () => {
+      if (dataLog.length === 0) return;
+      const csvContent = "data:text/csv;charset=utf-8," 
+        + "timestamp,step_length_m\n"
+        + dataLog.map(e => `${e.t},${e.sl}`).join("\n");
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", "gait_data.csv");
+      document.body.appendChild(link);
+      link.click();
+    });
+
+    function updateButtons(isRunning) {
+      dom.btnWebcam.disabled = isRunning;
+      dom.fileUpload.disabled = isRunning;
+      dom.btnStop.disabled = !isRunning;
+      dom.btnExport.disabled = isRunning && dataLog.length === 0;
+    }
+
+    function resetSession() {
+      dataLog = [];
+      calibration = { samples: [], scale: null };
+      dom.txtScale.innerText = "-";
+      dom.txtStep.innerText = "-";
+      dom.btnExport.disabled = true;
+    }
+
+    // --- 5. PREDICTION LOOP ---
+    async function predictWebcam() {
+      if (!running) return;
+
+      // Resize canvas to match video
+      if (dom.video.videoWidth !== dom.canvas.width) {
+        dom.canvas.width = dom.video.videoWidth;
+        dom.canvas.height = dom.video.videoHeight;
+      }
+
+      let startTimeMs = performance.now();
+      if (lastVideoTime !== dom.video.currentTime) {
+        lastVideoTime = dom.video.currentTime;
+        
+        const result = poseLandmarker.detectForVideo(dom.video, startTimeMs);
+        
+        const ctx = dom.canvas.getContext("2d");
+        ctx.clearRect(0, 0, dom.canvas.width, dom.canvas.height);
+
+        if (result.landmarks && result.landmarks.length > 0) {
+          const lm = result.landmarks[0];
+          drawLandmarks(lm, ctx);
+          processGait(lm, dom.video.currentTime);
+        }
+      }
+
+      if (running) {
+        window.requestAnimationFrame(predictWebcam);
+      }
+    }
+
+    // --- 6. GAIT LOGIC (Simplified) ---
+    function processGait(lm, time) {
+      // Indexes: Nose=0, L_Ankle=27, R_Ankle=28
+      const nose = lm[0];
+      const lAnkle = lm[27];
+      const rAnkle = lm[28];
+
+      // Auto Calibrate (Simple)
+      if (!calibration.scale && nose && lAnkle) {
+        const pxHeight = Math.abs(nose.y - lAnkle.y) * dom.canvas.height;
+        calibration.samples.push(pxHeight);
+        if (calibration.samples.length > 30) {
+          // Median
+          calibration.samples.sort((a,b) => a-b);
+          const medianPx = calibration.samples[Math.floor(calibration.samples.length/2)];
+          const realHeight = parseFloat(dom.inputHeight.value);
+          calibration.scale = realHeight / medianPx;
+          dom.txtScale.innerText = calibration.scale.toFixed(4) + " m/px";
+          dom.txtStatus.innerText = "Calibrated!";
+        } else {
+          dom.txtStatus.innerText = `Calibrating... ${Math.floor((calibration.samples.length/30)*100)}%`;
+        }
+      }
+
+      // Step Length
+      if (calibration.scale && lAnkle && rAnkle) {
+        const pxDist = Math.abs(lAnkle.x - rAnkle.x) * dom.canvas.width;
+        const mDist = pxDist * calibration.scale;
+        
+        dom.txtStep.innerText = mDist.toFixed(2);
+        dataLog.push({ t: time.toFixed(2), sl: mDist.toFixed(3) });
+        dom.btnExport.disabled = false;
+      }
+    }
+
+    // --- 7. DRAWING HELPERS ---
+    function drawLandmarks(lm, ctx) {
+      ctx.fillStyle = "#2563eb";
+      ctx.strokeStyle = "white";
+      ctx.lineWidth = 2;
+      
+      for (let p of lm) {
+        const x = p.x * dom.canvas.width;
+        const y = p.y * dom.canvas.height;
+        ctx.beginPath();
+        ctx.arc(x, y, 4, 0, 2*Math.PI);
+        ctx.fill();
+        ctx.stroke();
+      }
+    }
+
+    // START
+    init();
+
+  </script>
 </body>
 </html>
