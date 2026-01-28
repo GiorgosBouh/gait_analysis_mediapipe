@@ -1,7 +1,6 @@
 import { PoseLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.9";
 
-// ΣΗΜΑΝΤΙΚΟ: Αυτό βρίσκει το αρχείο .task στον ίδιο φάκελο με το pose.js
-// ανεξάρτητα από το αν είσαι σε localhost ή στο github.io/repo/
+// Βρίσκουμε το URL του μοντέλου δυναμικά, με βάση τη θέση του αρχείου pose.js
 const modelAssetPath = new URL("./pose_landmarker_lite.task", import.meta.url).toString();
 
 export const POSE_LANDMARK_NAMES = [
@@ -31,10 +30,9 @@ export async function createPoseLandmarker() {
 
     console.log(`[Pose] Loading model from: ${modelAssetPath}`);
     
-    // Φόρτωση του μοντέλου
     const poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
       baseOptions: {
-        modelAssetPath: modelAssetPath, // Χρησιμοποιούμε το URL που φτιάξαμε
+        modelAssetPath: modelAssetPath,
         delegate: "GPU"
       },
       runningMode: "VIDEO",
@@ -48,7 +46,7 @@ export async function createPoseLandmarker() {
     return poseLandmarker;
   } catch (error) {
     console.error("[Pose] Error creating landmarker:", error);
-    alert("Error loading AI Model. Please check console.");
+    alert("Σφάλμα φόρτωσης μοντέλου. Δες την κονσόλα (F12).");
     throw error;
   }
 }
