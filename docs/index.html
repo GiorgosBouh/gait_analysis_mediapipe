@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BioGait 3D - v3.4 Ultimate</title>
+  <title>BioGait 3D - v3.5 Ultimate</title>
 
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 
@@ -168,13 +168,26 @@
       </div>
 
       <div class="footer-section">
+        <button id="btnCamPrep" class="info-toggle">
+          📷 Camera Prep & Setup <span style="font-size:0.6rem">▼</span>
+        </button>
+        <div id="camPrepContent" class="info-box">
+          <ul>
+            <li><strong>Position:</strong> Place camera at hip height (~1m), 90° to walking path (Sagittal view).</li>
+            <li><strong>Distance:</strong> Ensure full body visibility (head-to-toe) throughout the walk (3-5m).</li>
+            <li><strong>Lighting:</strong> Use bright, even lighting. Avoid backlighting.</li>
+            <li><strong>Clothing:</strong> Wear tight-fitting clothes. Loose pants reduce accuracy.</li>
+            <li><strong>Stability:</strong> Use a tripod. Do not hold by hand.</li>
+          </ul>
+        </div>
+
         <button id="btnSpecs" class="info-toggle">
           ℹ️ System Specs & Validity <span style="font-size:0.6rem">▼</span>
         </button>
         <div id="specsContent" class="info-box">
           <ul>
             <li><strong>Model:</strong> MediaPipe Pose (Full). Deep Learning 3D Estimation.</li>
-            <li><strong>Accuracy:</strong> Mean Per-Joint Error 30-50mm. Angular error typically 3-5° (Sagittal) vs Gold Standard MoCap.</li>
+            <li><strong>Accuracy:</strong> Mean Per-Joint Error 30-50mm. Angular error typically 3-5° vs Gold Standard.</li>
             <li><strong>Sensitivity:</strong> Susceptible to loose clothing, poor lighting, and occlusion.</li>
             <li><strong>Validity:</strong> Valid for gait screening, trend monitoring, and education. NOT for surgical planning.</li>
           </ul>
@@ -325,7 +338,9 @@
       btnPrivacy: document.getElementById('btnPrivacy'),
       privacyContent: document.getElementById('privacyContent'),
       btnSpecs: document.getElementById('btnSpecs'),
-      specsContent: document.getElementById('specsContent')
+      specsContent: document.getElementById('specsContent'),
+      btnCamPrep: document.getElementById('btnCamPrep'),
+      camPrepContent: document.getElementById('camPrepContent')
     };
 
     // 3D Variables
@@ -408,6 +423,7 @@
       };
       toggle(els.btnPrivacy, els.privacyContent);
       toggle(els.btnSpecs, els.specsContent);
+      toggle(els.btnCamPrep, els.camPrepContent);
     }
 
     // --- APPLICATION LOGIC ---
