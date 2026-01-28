@@ -4,7 +4,7 @@ import {
   POSE_LANDMARK_NAMES,
   POSE_CONNECTIONS,
   LANDMARK_INDEX,
-} from "./pose.js?v=20260201_1100";
+} from "./pose.js?v=20260201_1205";
 import {
   clamp,
   median,
@@ -14,10 +14,10 @@ import {
   computeDtStats,
   ensureCanvasSize,
   computePeaks,
-} from "./utils.js?v=20260201_1100";
-import { LineChart } from "./charts.js?v=20260201_1100";
+} from "./utils.js?v=20260201_1205";
+import { LineChart } from "./charts.js?v=20260201_1205";
 
-const BUILD_STAMP = "20260201_1100";
+const BUILD_STAMP = "20260201_1205";
 console.log(`APP.JS VERSION: ${BUILD_STAMP}`);
 
 const appState = {
@@ -41,43 +41,53 @@ const appState = {
   modelLoading: false,
 };
 
+function getEl(id) {
+  const el = document.getElementById(id);
+  if (!el) {
+    console.warn(`[App] Missing element #${id}`);
+  }
+  return el;
+}
+
 const dom = {
-  appStatus: document.getElementById("appStatus"),
+  appStatus: getEl("appStatus"),
   tabs: document.querySelectorAll(".tab"),
   tabContents: {
-    live: document.getElementById("tab-live"),
-    upload: document.getElementById("tab-upload"),
+    live: getEl("tab-live"),
+    upload: getEl("tab-upload"),
   },
-  video: document.getElementById("video"),
-  overlay: document.getElementById("overlay"),
-  startLive: document.getElementById("startLive"),
-  stopLive: document.getElementById("stopLive"),
-  videoFile: document.getElementById("videoFile"),
-  startUpload: document.getElementById("startUpload"),
-  stopUpload: document.getElementById("stopUpload"),
-  heightInput: document.getElementById("heightInput"),
-  smoothingWindow: document.getElementById("smoothingWindow"),
-  smoothingValue: document.getElementById("smoothingValue"),
-  inferenceThrottle: document.getElementById("inferenceThrottle"),
-  inferenceValue: document.getElementById("inferenceValue"),
-  toggleOverlay: document.getElementById("toggleOverlay"),
-  autoCalibrate: document.getElementById("autoCalibrate"),
-  calibrateNow: document.getElementById("calibrateNow"),
-  exportCsv: document.getElementById("exportCsv"),
-  exportMeta: document.getElementById("exportMeta"),
-  calibrationStatus: document.getElementById("calibrationStatus"),
-  scaleStatus: document.getElementById("scaleStatus"),
-  visibilityStatus: document.getElementById("visibilityStatus"),
-  warningStatus: document.getElementById("warningStatus"),
-  avgStepLength: document.getElementById("avgStepLength"),
-  avgStepWidth: document.getElementById("avgStepWidth"),
-  avgComSpeed: document.getElementById("avgComSpeed"),
-  cadenceValue: document.getElementById("cadenceValue"),
+  video: getEl("video"),
+  overlay: getEl("overlay"),
+  startLive: getEl("startLive"),
+  stopLive: getEl("stopLive"),
+  videoFile: getEl("videoFile"),
+  startUpload: getEl("startUpload"),
+  stopUpload: getEl("stopUpload"),
+  heightInput: getEl("heightInput"),
+  smoothingWindow: getEl("smoothingWindow"),
+  smoothingValue: getEl("smoothingValue"),
+  inferenceThrottle: getEl("inferenceThrottle"),
+  inferenceValue: getEl("inferenceValue"),
+  toggleOverlay: getEl("toggleOverlay"),
+  autoCalibrate: getEl("autoCalibrate"),
+  calibrateNow: getEl("calibrateNow"),
+  exportCsv: getEl("exportCsv"),
+  exportMeta: getEl("exportMeta"),
+  calibrationStatus: getEl("calibrationStatus"),
+  scaleStatus: getEl("scaleStatus"),
+  visibilityStatus: getEl("visibilityStatus"),
+  warningStatus: getEl("warningStatus"),
+  avgStepLength: getEl("avgStepLength"),
+  avgStepWidth: getEl("avgStepWidth"),
+  avgComSpeed: getEl("avgComSpeed"),
+  cadenceValue: getEl("cadenceValue"),
+  stepChart: getEl("stepChart"),
+  comChart: getEl("comChart"),
 };
 
 const charts = {
-  step: new LineChart(document.getElementById("stepChart"), { lineColor: "#2563eb" }),
-  com: new LineChart(document.getElementById("comChart"), { lineColor: "#10b981" }),
+  step: dom.stepChart ? new LineChart(dom.stepChart, { lineColor: "#2563eb" }) : null,
+  com: dom.comChart ? new LineChart(dom.comChart, { lineColor: "#10b981" }) : null,
 };
 
 let animationId = null;
@@ -85,7 +95,9 @@ let mediaStream = null;
 let uploadUrl = null;
 
 function setStatus(message) {
-  dom.appStatus.textContent = message;
+  if (dom.appStatus) {
+    dom.appStatus.textContent = message;
+  }
 }
 
 function formatErrorMessage(error) {
@@ -125,7 +137,9 @@ function resetSession() {
   appState.warnings = [];
   resetCalibration();
   updateStatusUI();
-  dom.visibilityStatus.textContent = "—";
+  if (dom.visibilityStatus) {
+    dom.visibilityStatus.textContent = "—";
+  }
   updateResults();
   updateCharts();
   updateExportButtons();
@@ -142,11 +156,17 @@ function resetCalibration() {
 }
 
 function updateStatusUI() {
-  dom.calibrationStatus.textContent = appState.calibration.status;
-  dom.scaleStatus.textContent = appState.calibration.scale
-    ? `${formatNumber(appState.calibration.scale, 5)} m/px`
-    : "—";
-  dom.warningStatus.textContent = appState.warnings.length ? appState.warnings.join(" | ") : "None";
+  if (dom.calibrationStatus) {
+    dom.calibrationStatus.textContent = appState.calibration.status;
+  }
+  if (dom.scaleStatus) {
+    dom.scaleStatus.textContent = appState.calibration.scale
+      ? `${formatNumber(appState.calibration.scale, 5)} m/px`
+      : "—";
+  }
+  if (dom.warningStatus) {
+    dom.warningStatus.textContent = appState.warnings.length ? appState.warnings.join(" | ") : "None";
+  }
 }
 
 function updateResults() {
@@ -158,18 +178,19 @@ function updateResults() {
 
   const avg = (arr) => (arr.length ? arr.reduce((s, v) => s + v, 0) / arr.length : null);
 
-  dom.avgStepLength.textContent = formatNumber(avg(steps));
-  dom.avgStepWidth.textContent = formatNumber(avg(widths));
-  dom.avgComSpeed.textContent = formatNumber(avg(speeds));
+  if (dom.avgStepLength) dom.avgStepLength.textContent = formatNumber(avg(steps));
+  if (dom.avgStepWidth) dom.avgStepWidth.textContent = formatNumber(avg(widths));
+  if (dom.avgComSpeed) dom.avgComSpeed.textContent = formatNumber(avg(speeds));
 
   const cadence = computeCadence();
-  dom.cadenceValue.textContent = cadence ? cadence.toFixed(1) : "—";
+  if (dom.cadenceValue) dom.cadenceValue.textContent = cadence ? cadence.toFixed(1) : "—";
 }
 
 function computeCadence() {
   const trajectory = appState.data.map((frame) => frame.left_ankle_x_m2d).filter((v) => Number.isFinite(v));
   if (trajectory.length < 20) return null;
-  const smoothed = movingAverage(trajectory, Math.max(3, Number(dom.smoothingWindow.value)));
+  const smoothingWindow = dom.smoothingWindow ? Number(dom.smoothingWindow.value) : 5;
+  const smoothed = movingAverage(trajectory, Math.max(3, smoothingWindow));
   const peaks = computePeaks(smoothed, 6);
   if (peaks.length < 4) return null;
   const duration = appState.data.at(-1)?.timestamp_s - appState.data[0]?.timestamp_s;
@@ -185,18 +206,20 @@ function updateCharts() {
   const comData = appState.data
     .map((frame) => ({ x: frame.timestamp_s, y: frame.com_speed_mps_2d }))
     .filter((p) => Number.isFinite(p.y));
-  charts.step.draw(stepData);
-  charts.com.draw(comData);
+  if (charts.step) charts.step.draw(stepData);
+  if (charts.com) charts.com.draw(comData);
 }
 
 function updateExportButtons() {
   const enabled = appState.data.length > 0;
-  dom.exportCsv.disabled = !enabled;
-  dom.exportMeta.disabled = !enabled;
+  if (dom.exportCsv) dom.exportCsv.disabled = !enabled;
+  if (dom.exportMeta) dom.exportMeta.disabled = !enabled;
 }
 
 function setVisibilityStatus(isFullBody) {
-  dom.visibilityStatus.textContent = isFullBody ? "Full body detected" : "Partial body";
+  if (dom.visibilityStatus) {
+    dom.visibilityStatus.textContent = isFullBody ? "Full body detected" : "Partial body";
+  }
   if (!isFullBody) warnOnce("Body not fully visible");
 }
 
@@ -235,7 +258,7 @@ function estimatePixelHeight(landmarks, videoHeight) {
 }
 
 function updateCalibration(landmarks) {
-  if (!dom.autoCalibrate.checked || appState.calibration.scale) return;
+  if (!dom.autoCalibrate || !dom.autoCalibrate.checked || appState.calibration.scale) return;
   if (!appState.videoSize.height) return;
 
   const pixelHeight = estimatePixelHeight(landmarks, appState.videoSize.height);
@@ -248,7 +271,7 @@ function updateCalibration(landmarks) {
     const med = median(appState.calibration.samples);
 
     if (validCount >= required && med && med > 0.25 * appState.videoSize.height) {
-      const heightMeters = clamp(Number(dom.heightInput.value), 1.0, 2.3);
+      const heightMeters = clamp(Number(dom.heightInput?.value ?? 1.75), 1.0, 2.3);
       appState.calibration.scale = heightMeters / med;
       appState.calibration.status = "Calibrated";
     } else {
@@ -265,8 +288,9 @@ function updateManualCalibration() {
 }
 
 function drawPose(landmarks) {
-  if (!dom.toggleOverlay.checked) return;
+  if (!dom.toggleOverlay || !dom.toggleOverlay.checked) return;
   const canvas = dom.overlay;
+  if (!canvas) return;
   const ctx = canvas.getContext("2d");
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   if (!landmarks) return;
@@ -298,7 +322,9 @@ function processResult(result, timestampMs) {
   const world = result?.worldLandmarks?.[0];
   if (!landmarks) return;
 
-  ensureCanvasSize(dom.overlay, appState.videoSize.width, appState.videoSize.height);
+  if (dom.overlay) {
+    ensureCanvasSize(dom.overlay, appState.videoSize.width, appState.videoSize.height);
+  }
   drawPose(landmarks);
 
   const timestamp_s = timestampMs / 1000;
@@ -356,7 +382,7 @@ function computeCom(landmarks, scale) {
 function computeComSpeed(currentCom, dt) {
   if (!currentCom || !dt || appState.data.length === 0) return NaN;
 
-  const windowSize = Number(dom.smoothingWindow.value);
+  const windowSize = dom.smoothingWindow ? Number(dom.smoothingWindow.value) : 5;
   const comXs = appState.data.map((frame) => frame.com_x_m2d).filter((v) => Number.isFinite(v));
   const comYs = appState.data.map((frame) => frame.com_y_m2d).filter((v) => Number.isFinite(v));
 
@@ -468,7 +494,7 @@ function exportCsv() {
 }
 
 function exportMeta() {
-  const heightMeters = clamp(Number(dom.heightInput.value), 1.0, 2.3);
+  const heightMeters = clamp(Number(dom.heightInput?.value ?? 1.75), 1.0, 2.3);
   const dtStats = computeDtStats(appState.dts);
   const payload = {
     height_m: heightMeters,
@@ -478,8 +504,8 @@ function exportMeta() {
     video_height: appState.videoSize.height,
     mode: appState.mode,
     dt_stats: dtStats,
-    smoothing_window: Number(dom.smoothingWindow.value),
-    inference_throttle: Number(dom.inferenceThrottle.value),
+    smoothing_window: dom.smoothingWindow ? Number(dom.smoothingWindow.value) : null,
+    inference_throttle: dom.inferenceThrottle ? Number(dom.inferenceThrottle.value) : null,
     warnings: appState.warnings,
     app_version: "1.0.0",
   };
@@ -512,6 +538,7 @@ async function initPose() {
 }
 
 function setVideoSize() {
+  if (!dom.video || !dom.overlay) return;
   const width = dom.video.videoWidth;
   const height = dom.video.videoHeight;
   if (width && height && (width !== appState.videoSize.width || height !== appState.videoSize.height)) {
@@ -521,17 +548,23 @@ function setVideoSize() {
 }
 
 function updateControls(running) {
-  dom.startLive.disabled = running;
-  dom.stopLive.disabled = !running;
-  dom.startUpload.disabled = running || !dom.videoFile.files.length;
-  dom.stopUpload.disabled = !running;
+  if (dom.startLive) dom.startLive.disabled = running;
+  if (dom.stopLive) dom.stopLive.disabled = !running;
+  if (dom.startUpload) {
+    dom.startUpload.disabled = running || !dom.videoFile || !dom.videoFile.files.length;
+  }
+  if (dom.stopUpload) dom.stopUpload.disabled = !running;
 }
 
 function setMode(mode) {
   appState.mode = mode;
   dom.tabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.tab === mode));
-  dom.tabContents.live.classList.toggle("active", mode === "live");
-  dom.tabContents.upload.classList.toggle("active", mode === "upload");
+  if (dom.tabContents.live) {
+    dom.tabContents.live.classList.toggle("active", mode === "live");
+  }
+  if (dom.tabContents.upload) {
+    dom.tabContents.upload.classList.toggle("active", mode === "upload");
+  }
 }
 
 function stopProcessing() {
@@ -540,7 +573,7 @@ function stopProcessing() {
   animationId = null;
 
   try {
-    dom.video.pause();
+    if (dom.video) dom.video.pause();
   } catch (_) {}
 
   if (mediaStream) {
@@ -557,6 +590,8 @@ function stopProcessing() {
 }
 
 async function startLive() {
+  setStatus("Loading model…");
+  console.log("[App] Start Live clicked");
   if (!(await initPose())) return;
 
   appState.mode = "live";
@@ -573,10 +608,10 @@ async function startLive() {
     return;
   }
 
-  dom.video.srcObject = mediaStream;
+  if (dom.video) dom.video.srcObject = mediaStream;
 
   try {
-    await dom.video.play();
+    if (dom.video) await dom.video.play();
   } catch (err) {
     console.error(err);
     setStatus("Unable to start video playback");
@@ -586,7 +621,9 @@ async function startLive() {
   }
 
   // wait for dimensions
-  await waitForVideoMetadata(dom.video);
+  if (dom.video) {
+    await waitForVideoMetadata(dom.video);
+  }
   setVideoSize();
 
   appState.running = true;
@@ -596,20 +633,24 @@ async function startLive() {
 }
 
 async function startUpload() {
+  setStatus("Loading model…");
+  console.log("[App] Start Upload clicked");
   if (!(await initPose())) return;
 
   appState.mode = "upload";
-  if (!dom.videoFile.files.length) return;
+  if (!dom.videoFile || !dom.videoFile.files.length) return;
 
   resetSession();
   const file = dom.videoFile.files[0];
 
   uploadUrl = URL.createObjectURL(file);
-  dom.video.srcObject = null;
-  dom.video.src = uploadUrl;
+  if (dom.video) {
+    dom.video.srcObject = null;
+    dom.video.src = uploadUrl;
+  }
 
   try {
-    await dom.video.play();
+    if (dom.video) await dom.video.play();
   } catch (err) {
     console.error(err);
     setStatus("Unable to play uploaded video");
@@ -618,7 +659,9 @@ async function startUpload() {
     return;
   }
 
-  await waitForVideoMetadata(dom.video);
+  if (dom.video) {
+    await waitForVideoMetadata(dom.video);
+  }
   setVideoSize();
 
   appState.running = true;
@@ -644,8 +687,10 @@ function runLoop() {
     return;
   }
 
-  const now = appState.mode === "upload" ? dom.video.currentTime * 1000 : performance.now();
-  const throttle = Math.max(1, Number(dom.inferenceThrottle.value));
+  const now = appState.mode === "upload" && dom.video
+    ? dom.video.currentTime * 1000
+    : performance.now();
+  const throttle = dom.inferenceThrottle ? Math.max(1, Number(dom.inferenceThrottle.value)) : 1;
 
   // Use frame index for throttle (NOT data length because data only grows on detect frames)
   const frameIndex = appState.calibration.totalFrames + appState.data.length;
@@ -653,6 +698,7 @@ function runLoop() {
   if (frameIndex % throttle === 0) {
     let result = null;
     try {
+      if (!dom.video) return;
       result = appState.poseLandmarker.detectForVideo(dom.video, now);
     } catch (err) {
       reportError("Pose detection failed", err);
@@ -665,7 +711,7 @@ function runLoop() {
     drawPose(appState.lastResult.landmarks?.[0]);
   }
 
-  if (appState.mode === "upload" && dom.video.ended) {
+  if (appState.mode === "upload" && dom.video && dom.video.ended) {
     stopProcessing();
     setStatus("Upload finished");
     return;
@@ -675,8 +721,8 @@ function runLoop() {
 }
 
 function validateHeight() {
-  const heightMeters = clamp(Number(dom.heightInput.value), 1.0, 2.3);
-  dom.heightInput.value = heightMeters.toFixed(2);
+  const heightMeters = clamp(Number(dom.heightInput?.value ?? 1.75), 1.0, 2.3);
+  if (dom.heightInput) dom.heightInput.value = heightMeters.toFixed(2);
   if (appState.calibration.scale) {
     const latestMedian = median(appState.calibration.samples);
     if (latestMedian) appState.calibration.scale = heightMeters / latestMedian;
@@ -685,11 +731,15 @@ function validateHeight() {
 }
 
 function updateInferenceLabel() {
-  dom.inferenceValue.textContent = dom.inferenceThrottle.value;
+  if (dom.inferenceValue && dom.inferenceThrottle) {
+    dom.inferenceValue.textContent = dom.inferenceThrottle.value;
+  }
 }
 
 function updateSmoothingLabel() {
-  dom.smoothingValue.textContent = dom.smoothingWindow.value;
+  if (dom.smoothingValue && dom.smoothingWindow) {
+    dom.smoothingValue.textContent = dom.smoothingWindow.value;
+  }
 }
 
 function setupEventListeners() {
@@ -697,28 +747,36 @@ function setupEventListeners() {
     tab.addEventListener("click", () => setMode(tab.dataset.tab));
   });
 
-  dom.startLive.addEventListener("click", startLive);
-  dom.stopLive.addEventListener("click", stopProcessing);
+  if (dom.startLive) dom.startLive.addEventListener("click", startLive);
+  if (dom.stopLive) dom.stopLive.addEventListener("click", stopProcessing);
 
-  dom.videoFile.addEventListener("change", () => {
-    dom.startUpload.disabled = !dom.videoFile.files.length || appState.running;
-  });
-  dom.startUpload.addEventListener("click", startUpload);
-  dom.stopUpload.addEventListener("click", stopProcessing);
+  if (dom.videoFile) {
+    dom.videoFile.addEventListener("change", () => {
+      if (dom.startUpload) {
+        dom.startUpload.disabled = !dom.videoFile.files.length || appState.running;
+      }
+    });
+  }
+  if (dom.startUpload) dom.startUpload.addEventListener("click", startUpload);
+  if (dom.stopUpload) dom.stopUpload.addEventListener("click", stopProcessing);
 
-  dom.exportCsv.addEventListener("click", exportCsv);
-  dom.exportMeta.addEventListener("click", exportMeta);
+  if (dom.exportCsv) dom.exportCsv.addEventListener("click", exportCsv);
+  if (dom.exportMeta) dom.exportMeta.addEventListener("click", exportMeta);
 
-  dom.heightInput.addEventListener("change", validateHeight);
+  if (dom.heightInput) dom.heightInput.addEventListener("change", validateHeight);
 
-  dom.smoothingWindow.addEventListener("input", () => {
-    updateSmoothingLabel();
-    // Note: smoothing affects only future computed speeds/cadence, not retroactive
-  });
+  if (dom.smoothingWindow) {
+    dom.smoothingWindow.addEventListener("input", () => {
+      updateSmoothingLabel();
+      // Note: smoothing affects only future computed speeds/cadence, not retroactive
+    });
+  }
 
-  dom.inferenceThrottle.addEventListener("input", updateInferenceLabel);
+  if (dom.inferenceThrottle) {
+    dom.inferenceThrottle.addEventListener("input", updateInferenceLabel);
+  }
 
-  dom.calibrateNow.addEventListener("click", updateManualCalibration);
+  if (dom.calibrateNow) dom.calibrateNow.addEventListener("click", updateManualCalibration);
 }
 
 async function waitForVideoMetadata(videoEl) {
