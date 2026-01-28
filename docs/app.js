@@ -441,12 +441,28 @@ function exportMeta() {
   };
   downloadFile("gait_meta.json", JSON.stringify(payload, null, 2), "application/json");
 }
-
 async function initPose() {
+  // Disable start buttons until model is ready
+  dom.startLive.disabled = true;
+  dom.startUpload.disabled = true;
+
   setStatus("Loading model…");
-  appState.poseLandmarker = await createPoseLandmarker();
-  setStatus("Ready");
+  try {
+    appState.poseLandmarker = await createPoseLandmarker();
+    setStatus("Ready");
+  } catch (err) {
+    console.error(err);
+    setStatus("Model load failed (check Network/Console)");
+    appState.warnings.push("Model failed to load");
+    updateStatusUI();
+    return;
+  } finally {
+    // Enable live start always; upload start only if file selected
+    dom.startLive.disabled = false;
+    dom.startUpload.disabled = !dom.videoFile.files.length;
+  }
 }
+
 
 function setVideoSize() {
   const width = dom.video.videoWidth;
