@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BioGait 3D - Scientific Analysis v3.1</title>
+  <title>BioGait 3D - Full Kinematics v3.2</title>
 
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 
@@ -26,7 +26,7 @@
     
     .main-view { position: relative; background: radial-gradient(circle at center, #1e293b 0%, #020617 100%); overflow: hidden; }
     
-    /* Fixed Video Position */
+    /* Video PIP */
     .video-pip {
       position: absolute; top: 20px; right: 20px; width: 280px; aspect-ratio: 16/9;
       background: #000; border: 2px solid #475569; border-radius: 8px; overflow: hidden;
@@ -49,7 +49,7 @@
     .input-group label { display: block; font-size: 0.75rem; margin-bottom: 4px; color: #cbd5e1; }
     .input-group input { width: 100%; padding: 8px; background: #0f172a; border: 1px solid var(--border); color: white; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; }
 
-    /* Live Metrics Overlay */
+    /* Metrics Overlay */
     .metrics-panel {
       position: absolute; top: 20px; left: 20px; width: 220px;
       background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(4px);
@@ -120,7 +120,7 @@
 
   <div class="app-container">
     <header class="header">
-      <h1>BioGait 3D <span style="font-size:0.7em; color:#64748b; margin-left:5px;">v3.1 Clinical</span></h1>
+      <h1>BioGait 3D <span style="font-size:0.7em; color:#64748b; margin-left:5px;">Full Kinematics</span></h1>
       <div id="statusBadge" class="status-badge">SYSTEM LOADING</div>
     </header>
 
@@ -136,7 +136,7 @@
 
       <div>
         <div class="section-title">2. Static Calibration</div>
-        <p style="font-size:0.7rem; color:#94a3b8; margin-bottom:8px;">Stand T-Pose. Starts with 3s Delay.</p>
+        <p style="font-size:0.7rem; color:#94a3b8; margin-bottom:8px;">Stand T-Pose. 3s Countdown.</p>
         <button id="btnCalibrate" class="btn btn-success" disabled>Start Calibration</button>
         <div id="calibProgress"><div id="calibBar"></div></div>
         <div class="input-group" style="margin-top:8px;">
@@ -280,7 +280,6 @@
       calBar: document.getElementById('calibBar'),
       calProg: document.getElementById('calibProgress'),
       modal: document.getElementById('reportModal'),
-      // Live Display
       dispRK: document.getElementById('dispRK'),
       dispLK: document.getElementById('dispLK'),
       dispRH: document.getElementById('dispRH'),
@@ -327,7 +326,6 @@
       controls.target.set(0, 0.9, 0);
       controls.enableDamping = true;
 
-      // Lighting & Grid
       scene.add(new THREE.GridHelper(6, 12, 0x334155, 0x000000));
       const light = new THREE.DirectionalLight(0xffffff, 1.5);
       light.position.set(2, 5, 5);
@@ -372,25 +370,25 @@
     });
 
     els.btnCal.addEventListener('click', async () => {
-      // 1. COUNTDOWN
       els.btnCal.disabled = true;
+      // Countdown
       for(let i=3; i>0; i--) {
         els.status.innerText = `STARTING IN ${i}...`;
-        els.status.style.background = "#f59e0b"; // Orange
+        els.status.style.background = "#f59e0b";
         await new Promise(r => setTimeout(r, 1000));
       }
-
-      // 2. ACTUAL CAPTURE
+      
+      // Capture
       state.calibrationBuffer = [];
       els.calProg.style.display = 'block';
       els.calBar.style.width = '0%';
-      els.status.innerText = "CAPTURING..."; els.status.style.background = "#ef4444"; // Red
+      els.status.innerText = "CAPTURING..."; els.status.style.background = "#ef4444";
       
       let p = 0;
       const interval = setInterval(() => {
         p += 5; els.calBar.style.width = p + "%";
         if (p >= 100) { clearInterval(interval); finishCalibration(); }
-      }, 150); // ~3 sec total capture
+      }, 150); 
       state.calibrating = true;
     });
 
@@ -444,13 +442,11 @@
           drawSkeleton(lm);
           
           if (state.calibrating) {
-            // Est height: Nose Y to Mid-Ankle Y
             const h = Math.abs(lm[0].y - (lm[27].y + lm[28].y)/2);
             state.calibrationBuffer.push(h);
           }
           
           if (state.recording) {
-            // Compute Angles
             const rK = getAngle(lm[24], lm[26], lm[28]);
             const lK = getAngle(lm[23], lm[25], lm[27]);
             const rH = getAngle(lm[12], lm[24], lm[26]);
@@ -458,14 +454,12 @@
             const rA = getAngle(lm[26], lm[28], lm[32]);
             const lA = getAngle(lm[25], lm[27], lm[31]);
             
-            // Store Frame
             state.frames.push({
               t: els.vid.currentTime,
               lm: JSON.parse(JSON.stringify(lm)),
               ang: { rK, lK, rH, lH, rA, lA }
             });
 
-            // Update Live UI
             els.dispRK.innerText = rK.toFixed(0) + "°";
             els.dispLK.innerText = lK.toFixed(0) + "°";
             els.dispRH.innerText = rH.toFixed(0) + "°";
@@ -481,7 +475,6 @@
       for (let i=0; i<33; i++) {
         joints[i].position.set(lm[i].x*s, -lm[i].y*s + (state.calibrated ? 1 : 0), -lm[i].z*s);
         joints[i].visible = true;
-        // Color coding: Blue (Left), Red (Right)
         let c = 0xffffff;
         if (i > 10) c = (i % 2 !== 0) ? 0x0ea5e9 : 0xef4444;
         joints[i].material.color.setHex(c);
@@ -503,18 +496,14 @@
       return 180 - (Math.acos(dot/mag) * 180/Math.PI);
     }
 
-    // --- SCIENTIFIC ANALYSIS ---
-    
+    // --- ANALYSIS ---
     function performAnalysis() {
       const fr = state.frames;
       if (fr.length < 30) { alert("Recording too short (<1s)"); return; }
       const s = state.scale;
 
-      // 1. Detect Steps using Smoothed Ankle Distance (X-axis for side view)
-      // Separation = |Lx - Rx|
       const separation = fr.map(f => Math.abs(f.lm[27].x - f.lm[28].x));
       
-      // Smooth Separation to remove noise
       const smoothSep = [];
       for(let i=0; i<separation.length; i++) {
         let sum=0, cnt=0;
@@ -524,10 +513,9 @@
         smoothSep.push(sum/cnt);
       }
 
-      // Find Peaks (IC) with Threshold & Min Distance
       const peaks = [];
-      const threshold = 0.15; // Min step length 15cm
-      const minFrameDist = 15; // ~0.5s at 30fps
+      const threshold = 0.15; 
+      const minFrameDist = 15;
 
       for(let i=1; i<smoothSep.length-1; i++) {
         if (smoothSep[i] > smoothSep[i-1] && smoothSep[i] > smoothSep[i+1]) {
@@ -542,16 +530,12 @@
       const steps = peaks.length;
       if (steps < 2) { alert("Not enough steps detected."); return; }
       
-      // 2. Metrics Calculation
       const duration = fr[fr.length-1].t - fr[0].t;
-      const cadence = (steps / (duration/60)); // Steps per min
-      
-      // Avg Stride Length (Peak separation * scale)
+      const cadence = (steps / (duration/60)); 
       const strideLens = peaks.map(i => smoothSep[i] * s);
-      const avgStride = strideLens.reduce((a,b)=>a+b,0) / steps * 2; // *2 roughly for full stride extent
+      const avgStride = strideLens.reduce((a,b)=>a+b,0) / steps * 2; 
       const avgSpeed = (steps * (avgStride/2)) / duration;
 
-      // Fill Report Basic
       document.getElementById('repSpeed').innerText = avgSpeed.toFixed(2) + " m/s";
       document.getElementById('repCadence').innerText = cadence.toFixed(0) + " spm";
       document.getElementById('repStepsCount').innerText = steps;
@@ -560,32 +544,21 @@
       document.getElementById('repView').innerText = "Sagittal (Side)";
       document.getElementById('repScale').innerText = state.scale.toFixed(3);
 
-      // 3. Phase Classification (Left vs Right)
-      // Identify events for averaging
       const events = {
         r_ic: [], r_mst: [], r_po: [], r_sw: [],
         l_ic: [], l_mst: [], l_po: [], l_sw: []
       };
 
       peaks.forEach(idx => {
-        // At peak separation (IC):
-        // Heuristic: Check Knee Angles. IC leg is extended (~180/0). PO leg is flexed.
         const rK = fr[idx].ang.rK;
         const lK = fr[idx].ang.lK;
-        
         if (lK < rK) { 
-          // Left knee straighter -> Left IC, Right PO
-          events.l_ic.push(idx);
-          events.r_po.push(idx);
+          events.l_ic.push(idx); events.r_po.push(idx);
         } else {
-          // Right knee straighter -> Right IC, Left PO
-          events.r_ic.push(idx);
-          events.l_po.push(idx);
+          events.r_ic.push(idx); events.l_po.push(idx);
         }
       });
 
-      // Find Valleys (Mid-Stance)
-      // Valley between R_IC and L_IC => R_MSt
       for(let i=0; i<peaks.length-1; i++){
         let minVal = 999, minIdx = -1;
         for(let j=peaks[i]; j<peaks[i+1]; j++){
@@ -594,25 +567,20 @@
         if(minIdx !== -1) {
            const rK = fr[peaks[i]].ang.rK;
            const lK = fr[peaks[i]].ang.lK;
-           if (rK > lK) { // Right was IC
-             events.r_mst.push(minIdx);
-             events.l_sw.push(minIdx); // Approx swing peak of other leg
+           if (rK > lK) { 
+             events.r_mst.push(minIdx); events.l_sw.push(minIdx);
            } else {
-             events.l_mst.push(minIdx);
-             events.r_sw.push(minIdx);
+             events.l_mst.push(minIdx); events.r_sw.push(minIdx);
            }
         }
       }
 
-      // Helper to average
       function calcAvg(indices, key) {
         if (!indices.length) return "-";
         const sum = indices.reduce((acc, idx) => acc + fr[idx].ang[key], 0);
         return (sum / indices.length).toFixed(1);
       }
 
-      // 4. Fill Table
-      // Right Leg
       document.getElementById('rh_ic').innerText = calcAvg(events.r_ic, 'rH');
       document.getElementById('rh_mst').innerText = calcAvg(events.r_mst, 'rH');
       document.getElementById('rh_po').innerText = calcAvg(events.r_po, 'rH');
@@ -628,7 +596,6 @@
       document.getElementById('ra_po').innerText = calcAvg(events.r_po, 'rA');
       document.getElementById('ra_sw').innerText = calcAvg(events.r_sw, 'rA');
 
-      // Left Leg
       document.getElementById('lh_ic').innerText = calcAvg(events.l_ic, 'lH');
       document.getElementById('lh_mst').innerText = calcAvg(events.l_mst, 'lH');
       document.getElementById('lh_po').innerText = calcAvg(events.l_po, 'lH');
@@ -644,27 +611,54 @@
       document.getElementById('la_po').innerText = calcAvg(events.l_po, 'lA');
       document.getElementById('la_sw').innerText = calcAvg(events.l_sw, 'lA');
 
-      // Show
       els.modal.style.display = 'flex';
     }
 
-    // Export Function
+    // CSV EXPORT UPDATED
     window.downloadCSV = function() {
       if(!state.frames.length) return;
-      let c = "Time,Sep_m,RHip,LHip,RKnee,LKnee,RAnk,LAnk,RX,RY,RZ,LX,LY,LZ\n";
+      
+      // Header including 3D coordinates for Hip, Knee, Ankle, Heel
+      let c = "Time,Sep_m,RHip_Ang,LHip_Ang,RKnee_Ang,LKnee_Ang,RAnk_Ang,LAnk_Ang," +
+              "RHip_X,RHip_Y,RHip_Z,LHip_X,LHip_Y,LHip_Z," +
+              "RKnee_X,RKnee_Y,RKnee_Z,LKnee_X,LKnee_Y,LKnee_Z," +
+              "RAnk_X,RAnk_Y,RAnk_Z,LAnk_X,LAnk_Y,LAnk_Z," + 
+              "RHeel_X,RHeel_Y,RHeel_Z,LHeel_X,LHeel_Y,LHeel_Z\n";
+              
       const s = state.scale;
+      const fmt = (v) => (v * s).toFixed(3);
+      const fmtY = (v) => (-v * s).toFixed(3); // Invert Y to match visual up/down
+      const fmtZ = (v) => (-v * s).toFixed(3); // Invert Z to match visual depth
+
       state.frames.forEach(f => {
         const sep = Math.abs(f.lm[27].x - f.lm[28].x) * s;
+        const lm = f.lm;
+        
         c += `${f.t.toFixed(3)},${sep.toFixed(3)},` + 
              `${f.ang.rH.toFixed(1)},${f.ang.lH.toFixed(1)},` + 
              `${f.ang.rK.toFixed(1)},${f.ang.lK.toFixed(1)},` +
-             `${f.ang.rA.toFixed(1)},${f.ang.lA.toFixed(1)},` + 
-             `${(f.lm[28].x*s).toFixed(3)},${(-f.lm[28].y*s).toFixed(3)},${(-f.lm[28].z*s).toFixed(3)},` +
-             `${(f.lm[27].x*s).toFixed(3)},${(-f.lm[27].y*s).toFixed(3)},${(-f.lm[27].z*s).toFixed(3)}\n`;
+             `${f.ang.rA.toFixed(1)},${f.ang.lA.toFixed(1)},` +
+             
+             // Hips (24, 23)
+             `${fmt(lm[24].x)},${fmtY(lm[24].y)},${fmtZ(lm[24].z)},` +
+             `${fmt(lm[23].x)},${fmtY(lm[23].y)},${fmtZ(lm[23].z)},` +
+             
+             // Knees (26, 25)
+             `${fmt(lm[26].x)},${fmtY(lm[26].y)},${fmtZ(lm[26].z)},` +
+             `${fmt(lm[25].x)},${fmtY(lm[25].y)},${fmtZ(lm[25].z)},` +
+             
+             // Ankles (28, 27)
+             `${fmt(lm[28].x)},${fmtY(lm[28].y)},${fmtZ(lm[28].z)},` +
+             `${fmt(lm[27].x)},${fmtY(lm[27].y)},${fmtZ(lm[27].z)},` +
+             
+             // Heels (30, 29) - Useful for Strike
+             `${fmt(lm[30].x)},${fmtY(lm[30].y)},${fmtZ(lm[30].z)},` +
+             `${fmt(lm[29].x)},${fmtY(lm[29].y)},${fmtZ(lm[29].z)}\n`;
       });
+      
       const b = new Blob([c], {type:'text/csv'});
       const u = URL.createObjectURL(b);
-      const a = document.createElement('a'); a.href=u; a.download=`biogait_v3_${Date.now()}.csv`; a.click();
+      const a = document.createElement('a'); a.href=u; a.download=`biogait_full_3d_${Date.now()}.csv`; a.click();
     }
 
     init();
