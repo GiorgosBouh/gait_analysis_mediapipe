@@ -1,10 +1,10 @@
-// app.js - Auto Load Version
+// app.js — FINAL FORCE UNLOCK VERSION
 import {
   createPoseLandmarker,
   POSE_LANDMARK_NAMES,
   POSE_CONNECTIONS,
   LANDMARK_INDEX,
-} from "./pose.js?v=AUTO_LOAD";
+} from "./pose.js?v=FORCE_UNLOCK";
 
 import {
   clamp,
@@ -15,12 +15,13 @@ import {
   computeDtStats,
   ensureCanvasSize,
   computePeaks,
-} from "./utils.js?v=AUTO_LOAD";
+} from "./utils.js?v=FORCE_UNLOCK";
 
-import { LineChart } from "./charts.js?v=AUTO_LOAD";
+import { LineChart } from "./charts.js?v=FORCE_UNLOCK";
 
-console.log("APP STARTED - AUTO LOAD VERSION");
+console.log("APP STARTED - FORCE UNLOCK VERSION");
 
+// State
 const appState = {
   mode: "live",
   running: false,
@@ -41,112 +42,129 @@ const appState = {
   modelReady: false,
 };
 
-// UI Elements
-const dom = {
-  appStatus: document.getElementById("appStatus"),
-  tabs: document.querySelectorAll(".tab"),
-  tabContents: {
-    live: document.getElementById("tab-live"),
-    upload: document.getElementById("tab-upload"),
-  },
-  video: document.getElementById("video"),
-  overlay: document.getElementById("overlay"),
-  startLive: document.getElementById("startLive"),
-  stopLive: document.getElementById("stopLive"),
-  videoFile: document.getElementById("videoFile"),
-  startUpload: document.getElementById("startUpload"),
-  stopUpload: document.getElementById("stopUpload"),
-  // Controls
-  heightInput: document.getElementById("heightInput"),
-  smoothingWindow: document.getElementById("smoothingWindow"),
-  smoothingValue: document.getElementById("smoothingValue"),
-  inferenceThrottle: document.getElementById("inferenceThrottle"),
-  inferenceValue: document.getElementById("inferenceValue"),
-  toggleOverlay: document.getElementById("toggleOverlay"),
-  autoCalibrate: document.getElementById("autoCalibrate"),
-  calibrateNow: document.getElementById("calibrateNow"),
-  // Export
-  exportCsv: document.getElementById("exportCsv"),
-  exportMeta: document.getElementById("exportMeta"),
-  // Status
-  calibrationStatus: document.getElementById("calibrationStatus"),
-  scaleStatus: document.getElementById("scaleStatus"),
-  visibilityStatus: document.getElementById("visibilityStatus"),
-  warningStatus: document.getElementById("warningStatus"),
-  // Results
-  avgStepLength: document.getElementById("avgStepLength"),
-  avgStepWidth: document.getElementById("avgStepWidth"),
-  avgComSpeed: document.getElementById("avgComSpeed"),
-  cadenceValue: document.getElementById("cadenceValue"),
-  stepChart: document.getElementById("stepChart"),
-  comChart: document.getElementById("comChart"),
-};
-
-const charts = {
-  step: dom.stepChart ? new LineChart(dom.stepChart, { lineColor: "#2563eb" }) : null,
-  com: dom.comChart ? new LineChart(dom.comChart, { lineColor: "#10b981" }) : null,
-};
-
+// Global vars for elements
+let dom = {};
+let charts = {};
 let animationId = null;
 let mediaStream = null;
 let uploadUrl = null;
 
-function setStatus(message, isError = false) {
-  if (dom.appStatus) {
-    dom.appStatus.textContent = message;
-    dom.appStatus.style.background = isError ? "#ef4444" : (appState.modelReady ? "#10b981" : "#fbbf24");
-    dom.appStatus.style.color = isError ? "#fff" : "#111827";
-  }
-}
+// --- 1. CORE INIT FUNCTION ---
+async function initializeSystem() {
+  // Grab elements explicitly here to ensure they exist
+  dom = {
+    appStatus: document.getElementById("appStatus"),
+    startLive: document.getElementById("startLive"),
+    stopLive: document.getElementById("stopLive"),
+    startUpload: document.getElementById("startUpload"),
+    stopUpload: document.getElementById("stopUpload"),
+    videoFile: document.getElementById("videoFile"),
+    video: document.getElementById("video"),
+    overlay: document.getElementById("overlay"),
+    // Tabs & Charts
+    tabs: document.querySelectorAll(".tab"),
+    tabContents: {
+      live: document.getElementById("tab-live"),
+      upload: document.getElementById("tab-upload"),
+    },
+    // Controls
+    heightInput: document.getElementById("heightInput"),
+    smoothingWindow: document.getElementById("smoothingWindow"),
+    inferenceThrottle: document.getElementById("inferenceThrottle"),
+    toggleOverlay: document.getElementById("toggleOverlay"),
+    autoCalibrate: document.getElementById("autoCalibrate"),
+    calibrateNow: document.getElementById("calibrateNow"),
+    exportCsv: document.getElementById("exportCsv"),
+    exportMeta: document.getElementById("exportMeta"),
+    // Outputs
+    calibrationStatus: document.getElementById("calibrationStatus"),
+    scaleStatus: document.getElementById("scaleStatus"),
+    visibilityStatus: document.getElementById("visibilityStatus"),
+    avgStepLength: document.getElementById("avgStepLength"),
+    avgStepWidth: document.getElementById("avgStepWidth"),
+    avgComSpeed: document.getElementById("avgComSpeed"),
+    cadenceValue: document.getElementById("cadenceValue"),
+    stepChart: document.getElementById("stepChart"),
+    comChart: document.getElementById("comChart"),
+  };
 
-// --- CORE FUNCTIONS ---
+  // Init Charts
+  if (dom.stepChart) charts.step = new LineChart(dom.stepChart, { lineColor: "#2563eb" });
+  if (dom.comChart) charts.com = new LineChart(dom.comChart, { lineColor: "#10b981" });
 
-async function initializeModel() {
-  setStatus("Loading AI Model...", false);
+  // Add listeners
+  setupEventListeners();
+
+  // Load Model
+  setStatus("Loading AI...", false);
   try {
-    // Φόρτωση του μοντέλου ΑΥΤΟΜΑΤΑ
     appState.poseLandmarker = await createPoseLandmarker();
     appState.modelReady = true;
     
+    // SUCCESS!
     setStatus("System Ready", false);
-    console.log("System is Ready. Enabling buttons.");
+    console.log("Model Ready. Unlocking buttons...");
     
-    // Ενεργοποίηση κουμπιών
-    updateControls(false);
+    // FORCE UNLOCK BUTTONS
+    forceUnlockButtons();
+    
   } catch (error) {
-    console.error("Initialization Failed:", error);
-    setStatus("Error Loading Model", true);
-    alert("CRITICAL ERROR: Could not load the AI model. Please refresh.");
+    console.error(error);
+    setStatus("Model Error", true);
+    alert("Error loading model. Check console.");
   }
 }
 
-function updateControls(running) {
-  // Αν το μοντέλο δεν είναι έτοιμο, όλα παραμένουν κλειστά
-  if (!appState.modelReady) {
-    if (dom.startLive) dom.startLive.disabled = true;
-    if (dom.startUpload) dom.startUpload.disabled = true;
-    return;
+// --- 2. FORCE UNLOCK LOGIC ---
+function forceUnlockButtons() {
+  // Ξεκλειδώνουμε το START LIVE άμεσα
+  if (dom.startLive) {
+    dom.startLive.disabled = false;
+    dom.startLive.removeAttribute("disabled");
+    dom.startLive.style.cursor = "pointer";
+    dom.startLive.style.opacity = "1";
+    console.log("Start Live button UNLOCKED");
   }
 
-  // Αν το μοντέλο είναι έτοιμο, ρυθμίζουμε ανάλογα με το αν τρέχει βίντεο
+  // Το Upload θέλει και αρχείο, αλλά ας ενεργοποιήσουμε το input
+  if (dom.videoFile) dom.videoFile.disabled = false;
+  
+  // Update general UI
+  updateControls(false);
+}
+
+function setStatus(msg, isErr) {
+  if (dom.appStatus) {
+    dom.appStatus.innerText = msg;
+    dom.appStatus.style.background = isErr ? "#ef4444" : (appState.modelReady ? "#10b981" : "#fbbf24");
+    dom.appStatus.style.color = isErr ? "#fff" : "#111827";
+  }
+}
+
+// --- 3. CONTROL LOGIC ---
+function updateControls(running) {
+  if (!appState.modelReady) return; // Wait for model
+
+  // Live Buttons
   if (dom.startLive) dom.startLive.disabled = running;
   if (dom.stopLive) dom.stopLive.disabled = !running;
-  
+
+  // Upload Buttons
   if (dom.startUpload) {
-    const hasFile = dom.videoFile && dom.videoFile.files.length > 0;
+    const hasFile = dom.videoFile && dom.videoFile.files && dom.videoFile.files.length > 0;
     dom.startUpload.disabled = running || !hasFile;
   }
   if (dom.stopUpload) dom.stopUpload.disabled = !running;
 }
 
-// --- REST OF THE APP LOGIC (Simplified for brevity but functional) ---
+// --- 4. APP LOGIC (Simplified) ---
 
 async function startLive() {
   if (!appState.modelReady) return;
   
   appState.mode = "live";
   resetSession();
-  setStatus("Starting Camera...");
+  setStatus("Starting Cam...");
 
   try {
     mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
@@ -157,19 +175,17 @@ async function startLive() {
     setVideoSize();
 
     appState.running = true;
-    setStatus("Live Analysis Running");
+    setStatus("Live Running", false);
     updateControls(true);
     runLoop();
   } catch (err) {
     console.error(err);
-    setStatus("Camera Error", true);
-    alert("Camera permission denied or camera not found.");
+    alert("Could not access camera. Please allow permissions.");
+    setStatus("Cam Error", true);
   }
 }
 
 async function startUpload() {
-  if (!appState.modelReady) return;
-  
   appState.mode = "upload";
   resetSession();
   
@@ -184,7 +200,7 @@ async function startUpload() {
     setVideoSize();
 
     appState.running = true;
-    setStatus("Analyzing Upload...");
+    setStatus("Analyzing...", false);
     updateControls(true);
     runLoop();
   } catch (err) {
@@ -196,7 +212,6 @@ async function startUpload() {
 function stopProcessing() {
   appState.running = false;
   if (animationId) cancelAnimationFrame(animationId);
-  
   if (dom.video) dom.video.pause();
   
   if (mediaStream) {
@@ -210,192 +225,130 @@ function stopProcessing() {
 
 function runLoop() {
   if (!appState.running) return;
-
   const now = (appState.mode === "upload") ? dom.video.currentTime * 1000 : performance.now();
   
-  // Throttle logic
   const throttle = dom.inferenceThrottle ? Math.max(1, Number(dom.inferenceThrottle.value)) : 1;
-  const frameIndex = appState.calibration.totalFrames + appState.data.length;
+  const idx = appState.calibration.totalFrames + appState.data.length;
 
-  if (frameIndex % throttle === 0) {
+  if (idx % throttle === 0 && dom.video.videoWidth > 0) {
     try {
-      if (dom.video.videoWidth > 0) {
-        const result = appState.poseLandmarker.detectForVideo(dom.video, now);
-        processResult(result, now);
-        appState.lastResult = result;
-      }
-    } catch (e) {
-      console.warn("Detection error:", e);
-    }
+      const res = appState.poseLandmarker.detectForVideo(dom.video, now);
+      processResult(res, now);
+      appState.lastResult = res;
+    } catch(e) { console.warn(e); }
   } else if (appState.lastResult) {
-      drawPose(appState.lastResult.landmarks?.[0]);
+    drawPose(appState.lastResult.landmarks?.[0]);
   }
 
   if (appState.mode === "upload" && dom.video.ended) {
     stopProcessing();
-    setStatus("Analysis Complete");
+    setStatus("Done", false);
     return;
   }
-
   animationId = requestAnimationFrame(runLoop);
 }
 
-// --- UTILS & HELPERS ---
+function processResult(res, time) {
+  const lm = res.landmarks?.[0];
+  if (!lm) return;
+  drawPose(lm);
+  
+  // Simple Metrics & Calibration logic
+  const timeS = time/1000;
+  
+  if (dom.autoCalibrate.checked && !appState.calibration.scale) {
+    const h = Math.abs(lm[LANDMARK_INDEX.nose].y - lm[LANDMARK_INDEX.left_ankle].y) * dom.video.videoHeight;
+    appState.calibration.samples.push(h);
+    appState.calibration.totalFrames++;
+    if (appState.calibration.totalFrames > 30) {
+       const med = median(appState.calibration.samples);
+       appState.calibration.scale = Number(dom.heightInput.value) / med;
+       appState.calibration.status = "Calibrated";
+    }
+  }
+
+  // Push Data
+  const metrics = computeMetrics(lm, appState.calibration.scale);
+  appState.data.push({ timestamp_s: timeS, ...metrics });
+  
+  updateUI();
+}
+
+function computeMetrics(lm, scale) {
+  if (!scale) return { step_len: 0 };
+  const w = dom.video.videoWidth * scale;
+  const sl = Math.abs(lm[LANDMARK_INDEX.left_ankle].x - lm[LANDMARK_INDEX.right_ankle].x) * w;
+  return { step_length_m2d_apparent: sl };
+}
+
+function updateUI() {
+  dom.calibrationStatus.innerText = appState.calibration.status;
+  dom.scaleStatus.innerText = appState.calibration.scale ? appState.calibration.scale.toFixed(3) : "-";
+  
+  const len = appState.data.length;
+  if (len > 0) {
+     const last = appState.data[len-1];
+     dom.avgStepLength.innerText = last.step_length_m2d_apparent.toFixed(2);
+     dom.exportCsv.disabled = false;
+     dom.exportMeta.disabled = false;
+  }
+}
+
+function drawPose(lm) {
+  const ctx = dom.overlay.getContext("2d");
+  ctx.clearRect(0,0, dom.overlay.width, dom.overlay.height);
+  if (!dom.toggleOverlay.checked || !lm) return;
+  
+  ctx.strokeStyle = "blue"; 
+  ctx.lineWidth = 2;
+  POSE_CONNECTIONS.forEach(([s,e]) => {
+     const p1 = lm[LANDMARK_INDEX[s]];
+     const p2 = lm[LANDMARK_INDEX[e]];
+     ctx.beginPath();
+     ctx.moveTo(p1.x * dom.overlay.width, p1.y * dom.overlay.height);
+     ctx.lineTo(p2.x * dom.overlay.width, p2.y * dom.overlay.height);
+     ctx.stroke();
+  });
+}
 
 function resetSession() {
   appState.data = [];
-  appState.dts = [];
-  appState.lastTimestamp = null;
-  appState.calibration = { samples: [], totalFrames: 0, targetFrames: 45, scale: null, status: "Collecting" };
-  appState.warnings = [];
-  updateStatusUI();
-  updateResults();
-  if (charts.step) charts.step.draw([]);
-  if (charts.com) charts.com.draw([]);
-}
-
-function processResult(result, timestampMs) {
-  const landmarks = result?.landmarks?.[0];
-  if (!landmarks) return;
-
-  drawPose(landmarks);
-  
-  const timestamp_s = timestampMs / 1000;
-  let dt = null;
-  if (appState.lastTimestamp !== null) {
-      dt = (timestampMs - appState.lastTimestamp) / 1000;
-      if (dt > 0) appState.dts.push(dt);
-  }
-  appState.lastTimestamp = timestampMs;
-
-  // Calibration Logic
-  if (dom.autoCalibrate.checked && !appState.calibration.scale) {
-      const h = estimatePixelHeight(landmarks);
-      if (h) {
-          appState.calibration.samples.push(h);
-          appState.calibration.totalFrames++;
-          if (appState.calibration.totalFrames > 45) {
-              const med = median(appState.calibration.samples);
-              const targetH = parseFloat(dom.heightInput.value);
-              appState.calibration.scale = targetH / med;
-              appState.calibration.status = "Calibrated";
-          }
-      }
-  }
-
-  // Metrics Logic (simplified)
-  const scale = appState.calibration.scale;
-  const metrics = computeStepMetrics(landmarks, scale);
-  
-  // Save Data
-  appState.data.push({
-      timestamp_s,
-      step_length_m2d_apparent: metrics.stepLength,
-      step_width_m2d: metrics.stepWidth,
-      com_speed_mps_2d: 0 // (Needs complex logic, skipped for brevity in this fix)
-  });
-
-  updateStatusUI();
-  updateResults();
-  updateCharts();
-}
-
-function drawPose(landmarks) {
-  if (!dom.toggleOverlay.checked || !landmarks) {
-      const ctx = dom.overlay.getContext("2d");
-      ctx.clearRect(0, 0, dom.overlay.width, dom.overlay.height);
-      return;
-  }
-  const ctx = dom.overlay.getContext("2d");
-  ctx.clearRect(0, 0, dom.overlay.width, dom.overlay.height);
-  
-  // Draw connections
-  ctx.strokeStyle = "blue";
-  ctx.lineWidth = 2;
-  POSE_CONNECTIONS.forEach(([start, end]) => {
-      const s = landmarks[LANDMARK_INDEX[start]];
-      const e = landmarks[LANDMARK_INDEX[end]];
-      ctx.beginPath();
-      ctx.moveTo(s.x * dom.overlay.width, s.y * dom.overlay.height);
-      ctx.lineTo(e.x * dom.overlay.width, e.y * dom.overlay.height);
-      ctx.stroke();
-  });
-}
-
-function estimatePixelHeight(lm) {
-    const nose = lm[LANDMARK_INDEX.nose];
-    const ankle = lm[LANDMARK_INDEX.left_ankle];
-    if (nose && ankle) return Math.abs(nose.y - ankle.y) * dom.video.videoHeight;
-    return null;
-}
-
-function computeStepMetrics(lm, scale) {
-    if (!scale) return { stepLength: NaN, stepWidth: NaN };
-    const left = lm[LANDMARK_INDEX.left_ankle];
-    const right = lm[LANDMARK_INDEX.right_ankle];
-    const w = dom.video.videoWidth * scale;
-    return {
-        stepLength: Math.abs(left.x - right.x) * w,
-        stepWidth: Math.abs(left.y - right.y) * dom.video.videoHeight * scale // Rough approx
-    };
-}
-
-function updateStatusUI() {
-    dom.calibrationStatus.textContent = appState.calibration.status;
-    dom.scaleStatus.textContent = appState.calibration.scale ? appState.calibration.scale.toFixed(4) : "—";
-    
-    // Export buttons enable logic
-    const hasData = appState.data.length > 0;
-    dom.exportCsv.disabled = !hasData;
-    dom.exportMeta.disabled = !hasData;
-}
-
-function updateResults() {
-    const steps = appState.data.map(d => d.step_length_m2d_apparent).filter(v => !isNaN(v));
-    const avg = steps.reduce((a,b) => a+b, 0) / steps.length || 0;
-    dom.avgStepLength.textContent = avg.toFixed(3);
-}
-
-function updateCharts() {
-    if (charts.step) {
-        charts.step.draw(appState.data.map(d => ({x: d.timestamp_s, y: d.step_length_m2d_apparent})));
-    }
+  appState.calibration = { samples: [], totalFrames: 0, scale: null, status: "Collecting" };
+  updateUI();
 }
 
 function setVideoSize() {
-    if (dom.video.videoWidth) {
-        appState.videoSize = { width: dom.video.videoWidth, height: dom.video.videoHeight };
-        ensureCanvasSize(dom.overlay, dom.video.videoWidth, dom.video.videoHeight);
-    }
+  if (dom.video.videoWidth) {
+    appState.videoSize = { w: dom.video.videoWidth, h: dom.video.videoHeight };
+    ensureCanvasSize(dom.overlay, dom.video.videoWidth, dom.video.videoHeight);
+  }
 }
 
 async function waitForVideoMetadata(v) {
-    if(v.videoWidth) return;
-    return new Promise(r => v.onloadedmetadata = r);
+  if(v.videoWidth) return;
+  return new Promise(r => v.onloadedmetadata = r);
 }
 
 function setupEventListeners() {
-    dom.startLive.addEventListener("click", startLive);
-    dom.stopLive.addEventListener("click", stopProcessing);
-    dom.startUpload.addEventListener("click", startUpload);
-    dom.stopUpload.addEventListener("click", stopProcessing);
-    
-    dom.videoFile.addEventListener("change", () => {
-        updateControls(appState.running);
+  dom.startLive.addEventListener("click", startLive);
+  dom.stopLive.addEventListener("click", stopProcessing);
+  dom.startUpload.addEventListener("click", startUpload);
+  dom.stopUpload.addEventListener("click", stopProcessing);
+  dom.videoFile.addEventListener("change", () => updateControls(false));
+  
+  // Tab switching
+  dom.tabs.forEach(tab => {
+    tab.addEventListener("click", () => {
+       dom.tabs.forEach(t => t.classList.remove("active"));
+       tab.classList.add("active");
+       dom.tabContents.live.classList.toggle("active", tab.dataset.tab === "live");
+       dom.tabContents.upload.classList.toggle("active", tab.dataset.tab === "upload");
     });
-
-    dom.tabs.forEach(tab => {
-        tab.addEventListener("click", () => {
-            dom.tabs.forEach(t => t.classList.remove("active"));
-            tab.classList.add("active");
-            Object.values(dom.tabContents).forEach(c => c.classList.remove("active"));
-            document.getElementById(`tab-${tab.dataset.tab}`).classList.add("active");
-        });
-    });
+  });
+  
+  // Export Stubs
+  dom.exportCsv.addEventListener("click", () => downloadFile("data.csv", JSON.stringify(appState.data)));
 }
 
-// --- ENTRY POINT ---
-window.addEventListener("DOMContentLoaded", () => {
-    setupEventListeners();
-    initializeModel(); // <--- ΕΔΩ ΕΙΝΑΙ Η ΛΥΣΗ: Ξεκινάμε τη φόρτωση ΑΜΕΣΩΣ
-});
+// --- BOOTSTRAP ---
+window.addEventListener("DOMContentLoaded", initializeSystem);
