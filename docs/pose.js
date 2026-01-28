@@ -1,8 +1,5 @@
 // pose.js
-import {
-  PoseLandmarker,
-  FilesetResolver
-} from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.9";
+import { PoseLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.9";
 
 export const POSE_LANDMARK_NAMES = [
   "nose",
@@ -23,11 +20,8 @@ export const POSE_LANDMARK_NAMES = [
   "left_foot_index", "right_foot_index"
 ];
 
-export const LANDMARK_INDEX = Object.fromEntries(
-  POSE_LANDMARK_NAMES.map((name, idx) => [name, idx])
-);
+export const LANDMARK_INDEX = Object.fromEntries(POSE_LANDMARK_NAMES.map((n, i) => [n, i]));
 
-// Simple skeleton connections (name->name). Keep it minimal + stable.
 export const POSE_CONNECTIONS = [
   ["left_shoulder","right_shoulder"],
   ["left_hip","right_hip"],
@@ -51,22 +45,46 @@ export const POSE_CONNECTIONS = [
 
 let poseLandmarker = null;
 
+async function preflightFetch(url) {
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) {
+    throw new Error(`Model fetch failed: ${url} (HTTP ${res.status})`);
+  }
+  const buf = await res.arrayBuffer();
+  if (!buf || buf.byteLength < 1024 * 100) {
+    // model should be > ~100KB; if it's tiny it's probably an HTML 404 page
+    throw new Error(`Model fetch suspicious size (${buf?.byteLength} bytes): ${url}`);
+  }
+  return url;
+}
+
 export async function createPoseLandmarker() {
   if (poseLandmarker) return poseLandmarker;
 
-  // WASM runtime (CDN)
-  const vision = await FilesetResolver.forVisionTasks(
-    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.9/wasm"
-  );
+  // IMPORTANT: this is resolved relative to pose.js location
+  const localModelUrl = new URL("./models/pose_landmarker_lite.task", import.meta.url).toString();
 
-  // ✅ Self-hosted model (NO google storage 404)
+  console.log("[Pose] pose.js loaded from:", import.meta.url);
+  console.log("[Pose] resolved model URL:", localModelUrl);
+
+  // 1) Confirm model is fetchable from the exact URL the code will use
+  await preflightFetch(localModelUrl);
+
+  // 2) Init WASM runtime
+  const wasmBase = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.9/wasm";
+  console.log("[Pose] loading WASM from:", wasmBase);
+
+  const vision = await FilesetResolver.forVisionTasks(wasmBase);
+
+  // 3) Create landmarker
   poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
     baseOptions: {
-      modelAssetPath: "./models/pose_landmarker_lite.task"
+      modelAssetPath: localModelUrl, // explicit absolute URL
     },
     runningMode: "VIDEO",
-    numPoses: 1
+    numPoses: 1,
   });
 
+  console.log("[Pose] PoseLandmarker READY");
   return poseLandmarker;
 }

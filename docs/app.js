@@ -463,12 +463,11 @@ async function initPose() {
   if (appState.modelLoading) return false;
 
   appState.modelLoading = true;
-
-  // lock starts until model is ready
   dom.startLive.disabled = true;
   dom.startUpload.disabled = true;
 
   setStatus("Loading model…");
+
   try {
     appState.poseLandmarker = await createPoseLandmarker();
     appState.modelReady = true;
@@ -476,9 +475,13 @@ async function initPose() {
     return true;
   } catch (err) {
     console.error(err);
-    setStatus("Model load failed (check DevTools)");
-    warnOnce("Model failed to load (check Network)");
+
+    const msg = (err && err.message) ? err.message : String(err);
+    setStatus(`Model load failed: ${msg}`);
+
+    if (!appState.warnings.includes(msg)) appState.warnings.push(msg);
     updateStatusUI();
+
     appState.poseLandmarker = null;
     appState.modelReady = false;
     return false;
