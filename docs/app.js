@@ -4,7 +4,7 @@ import {
   POSE_LANDMARK_NAMES,
   POSE_CONNECTIONS,
   LANDMARK_INDEX,
-} from "./pose.js?v=20260128_1255";
+} from "./pose.js?v=20260201_1015";
 import {
   clamp,
   median,
@@ -14,10 +14,10 @@ import {
   computeDtStats,
   ensureCanvasSize,
   computePeaks,
-} from "./utils.js?v=20260128_1255";
-import { LineChart } from "./charts.js?v=20260128_1255";
+} from "./utils.js?v=20260201_1015";
+import { LineChart } from "./charts.js?v=20260201_1015";
 
-const BUILD_STAMP = "20260128_1255";
+const BUILD_STAMP = "20260201_1015";
 console.log(`APP.JS VERSION: ${BUILD_STAMP}`);
 
 const appState = {
@@ -524,9 +524,9 @@ function setVideoSize() {
 }
 
 function updateControls(running) {
-  dom.startLive.disabled = running || !appState.modelReady;
+  dom.startLive.disabled = running || appState.modelLoading;
   dom.stopLive.disabled = !running;
-  dom.startUpload.disabled = running || !dom.videoFile.files.length || !appState.modelReady;
+  dom.startUpload.disabled = running || !dom.videoFile.files.length || appState.modelLoading;
   dom.stopUpload.disabled = !running;
 }
 

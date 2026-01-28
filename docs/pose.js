@@ -6,7 +6,7 @@
 
 import { PoseLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.9";
 
-const BUILD_STAMP = "20260128_1255";
+const BUILD_STAMP = "20260201_1015";
 console.log(`POSE.JS VERSION: ${BUILD_STAMP}`);
 
 export const POSE_LANDMARK_NAMES = [
@@ -62,7 +62,7 @@ const MODEL_URL = new URL("./models/pose_landmarker_lite.task", import.meta.url)
 // ✅ IMPORTANT: repo name is case-sensitive on raw.githubusercontent.com
 // If your default branch is "master" instead of "main", change it.
 const RAW_MODEL_URL =
-  "https://raw.githubusercontent.com/giorgosbouh/GAIT_ANALYSIS_MEDIAPIPE/main/docs/models/pose_landmarker_lite.task";
+  "https://raw.githubusercontent.com/giorgosbouh/gait_analysis_mediapipe/main/docs/models/pose_landmarker_lite.task";
 
 async function fetchModelAsUint8Array(url, label) {
   const response = await fetch(url, { cache: "no-store", credentials: "omit" });
