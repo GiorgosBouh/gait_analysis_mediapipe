@@ -6,7 +6,7 @@
 
 import { PoseLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.9";
 
-const BUILD_STAMP = "20260201_1035";
+const BUILD_STAMP = "20260201_1100";
 console.log(`POSE.JS VERSION: ${BUILD_STAMP}`);
 
 export const POSE_LANDMARK_NAMES = [

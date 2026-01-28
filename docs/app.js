@@ -4,7 +4,7 @@ import {
   POSE_LANDMARK_NAMES,
   POSE_CONNECTIONS,
   LANDMARK_INDEX,
-} from "./pose.js?v=20260201_1035";
+} from "./pose.js?v=20260201_1100";
 import {
   clamp,
   median,
@@ -14,10 +14,10 @@ import {
   computeDtStats,
   ensureCanvasSize,
   computePeaks,
-} from "./utils.js?v=20260201_1035";
-import { LineChart } from "./charts.js?v=20260201_1035";
+} from "./utils.js?v=20260201_1100";
+import { LineChart } from "./charts.js?v=20260201_1100";
 
-const BUILD_STAMP = "20260201_1035";
+const BUILD_STAMP = "20260201_1100";
 console.log(`APP.JS VERSION: ${BUILD_STAMP}`);
 
 const appState = {
@@ -742,6 +742,7 @@ async function init() {
   setupGlobalErrorHandlers();
 
   // Do not preload the model; allow users to click Start immediately.
+  setStatus("Ready (click Start)");
   updateControls(false);
 }
 
