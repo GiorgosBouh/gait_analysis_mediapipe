@@ -1,9 +1,8 @@
-// pose.js
 import { PoseLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.9";
 
-// Σημαντικό: Κατασκευάζουμε το URL του μοντέλου δυναμικά με βάση τη θέση αυτού του αρχείου
-const MODEL_FILENAME = "pose_landmarker_lite.task";
-const MODEL_URL = new URL(`./${MODEL_FILENAME}`, import.meta.url).toString();
+// ΣΗΜΑΝΤΙΚΟ: Αυτό βρίσκει το αρχείο .task στον ίδιο φάκελο με το pose.js
+// ανεξάρτητα από το αν είσαι σε localhost ή στο github.io/repo/
+const modelAssetPath = new URL("./pose_landmarker_lite.task", import.meta.url).toString();
 
 export const POSE_LANDMARK_NAMES = [
   "nose", "left_eye_inner", "left_eye", "left_eye_outer",
@@ -23,30 +22,20 @@ export const LANDMARK_INDEX = Object.fromEntries(
 
 export const POSE_CONNECTIONS = PoseLandmarker.POSE_CONNECTIONS;
 
-// Συνάρτηση για να κατεβάσουμε τα bytes του μοντέλου
-async function loadModelBytes() {
-  console.log(`[Pose] Loading model from: ${MODEL_URL}`);
-  const response = await fetch(MODEL_URL);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch model: ${response.status} ${response.statusText}`);
-  }
-  return await response.arrayBuffer();
-}
-
 export async function createPoseLandmarker() {
   try {
+    console.log("[Pose] Initializing Vision Tasks...");
     const vision = await FilesetResolver.forVisionTasks(
       "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.9/wasm"
     );
 
-    // Φορτώνουμε το μοντέλο χειροκίνητα για να αποφύγουμε προβλήματα με paths στο GitHub Pages
-    const modelBuffer = await loadModelBytes();
-    const modelBytes = new Uint8Array(modelBuffer);
-
+    console.log(`[Pose] Loading model from: ${modelAssetPath}`);
+    
+    // Φόρτωση του μοντέλου
     const poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
       baseOptions: {
-        modelAssetBuffer: modelBytes,
-        delegate: "GPU" // Προσπάθεια για GPU, θα γυρίσει σε CPU αν αποτύχει
+        modelAssetPath: modelAssetPath, // Χρησιμοποιούμε το URL που φτιάξαμε
+        delegate: "GPU"
       },
       runningMode: "VIDEO",
       numPoses: 1,
@@ -59,6 +48,7 @@ export async function createPoseLandmarker() {
     return poseLandmarker;
   } catch (error) {
     console.error("[Pose] Error creating landmarker:", error);
+    alert("Error loading AI Model. Please check console.");
     throw error;
   }
 }
