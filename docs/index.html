@@ -3,16 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BioGait 3D - v4.6 Multi-Biofeedback</title>
+  <title>BioGait 3D - v5.5 Context AI</title>
 
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 
   <style>
-    /* --- CSS --- */
+    /* --- CSS STYLES --- */
     :root {
       --bg: #0f172a; --panel: #1e293b; --text: #f8fafc;
       --accent: #0ea5e9; --success: #10b981; --danger: #ef4444; --warn: #f59e0b;
-      --border: #334155;
+      --ai: #8b5cf6; --border: #334155;
     }
     body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; overflow: hidden; height: 100vh; }
     .app-container { display: grid; grid-template-columns: 350px 1fr; grid-template-rows: 60px 1fr; height: 100%; }
@@ -27,8 +27,6 @@
     
     /* Main View */
     .main-view { position: relative; background: radial-gradient(circle at center, #1e293b 0%, #020617 100%); overflow: hidden; }
-    
-    /* PIP Video */
     .video-pip { position: absolute; top: 20px; right: 20px; width: 280px; aspect-ratio: 16/9; background: #000; border: 2px solid #475569; border-radius: 8px; overflow: hidden; z-index: 50; transition: all 0.3s; box-shadow: 0 8px 16px rgba(0,0,0,0.6); }
     .video-pip video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
     
@@ -39,6 +37,7 @@
     .btn-success { background: var(--success); color: #fff; }
     .btn-danger { background: var(--danger); color: #fff; }
     .btn-warn { background: var(--warn); color: #000; }
+    .btn-ai { background: var(--ai); color: #fff; border: 1px solid #7c3aed; } .btn-ai:hover:not(:disabled) { background: #7c3aed; box-shadow: 0 0 10px rgba(139, 92, 246, 0.5); }
     .btn-secondary { background: #475569; color: #fff; }
     .btn:disabled { opacity: 0.4; cursor: not-allowed; filter: grayscale(1); }
 
@@ -54,12 +53,19 @@
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 200; display: none; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
     .modal-content { background: var(--panel); width: 95%; max-width: 900px; max-height: 90vh; border: 1px solid var(--border); border-radius: 12px; padding: 24px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5); overflow-y: auto; }
     
-    /* Metrics */
-    .metrics-panel { position: absolute; top: 20px; left: 20px; width: 220px; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(4px); padding: 12px; border-radius: 8px; border: 1px solid var(--border); font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; pointer-events: none; user-select: none; z-index: 10; }
-    .metric-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
-    .val { color: var(--accent); font-weight: bold; }
+    /* AI Response Area */
+    .ai-container { margin-top: 20px; border-top: 1px solid var(--border); padding-top: 20px; }
+    .ai-box { 
+      background: #1e1b4b; border: 1px solid var(--ai); padding: 20px; border-radius: 8px; 
+      font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: #e2e8f0; 
+      min-height: 120px; line-height: 1.6; white-space: pre-wrap; margin-top: 15px; display: none;
+    }
+    .ai-loading { color: #f59e0b; font-style: italic; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
 
-    /* Validation & Footer */
+    /* Metrics & Footer */
+    .metrics-panel { position: absolute; top: 20px; left: 20px; width: 220px; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(4px); padding: 12px; border-radius: 8px; border: 1px solid var(--border); font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; pointer-events: none; user-select: none; z-index: 10; }
+    .metric-row { display: flex; justify-content: space-between; margin-bottom: 4px; } .val { color: var(--accent); font-weight: bold; }
     .valid-row { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid var(--border); align-items: center; font-size: 0.85rem; }
     .pass { color: var(--success); font-weight: bold; background: rgba(34, 197, 94, 0.1); padding: 4px 8px; border-radius: 4px; }
     .fail { color: var(--danger); font-weight: bold; background: rgba(239, 68, 68, 0.1); padding: 4px 8px; border-radius: 4px; }
@@ -73,7 +79,6 @@
     .footer-credit { text-align: center; font-size: 0.7rem; color: #64748b; margin-top: 15px; }
     .footer-credit a { color: var(--accent); text-decoration: none; font-weight: 600; }
 
-    /* Loading & Progress */
     #loadingScreen { position: fixed; inset: 0; background: var(--bg); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
     .spinner { width: 40px; height: 40px; border: 4px solid #334155; border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
@@ -98,7 +103,7 @@
 
   <div class="app-container">
     <header class="header">
-      <h1>BioGait 3D <span style="font-size:0.7em; color:#64748b; margin-left:5px;">v4.6 Multi-Biofeedback</span></h1>
+      <h1>BioGait 3D <span style="font-size:0.7em; color:#64748b; margin-left:5px;">v5.5 Context AI</span></h1>
       <div id="statusBadge" class="status-badge">SYSTEM LOADING</div>
     </header>
 
@@ -139,22 +144,19 @@
           <input type="checkbox" id="chkAudio" style="width:20px; height:20px;">
           <label for="chkAudio" style="margin:0; font-weight:bold; color:#fff;">Enable Audio</label>
         </div>
-        
         <div class="input-group">
           <label>Feedback Mode</label>
           <select id="bioMode">
-            <option value="knee_ext">🦵 Knee Extension (Stance)</option>
-            <option value="knee_flex">📐 Knee Flexion (Swing)</option>
-            <option value="hip_flex">🚀 Hip Flexion (Step High)</option>
-            <option value="metro">⏱️ Metronome (Rhythm)</option>
+            <option value="knee_ext">🦵 Knee Ext. (Stance)</option>
+            <option value="knee_flex">📐 Knee Flex. (Swing)</option>
+            <option value="hip_flex">🚀 Hip Flex. (Lift)</option>
+            <option value="metro">⏱️ Metronome</option>
           </select>
         </div>
-
         <div class="input-group">
           <label id="lblBioTarget">Target Angle (< 10°)</label>
           <input type="number" id="bioThresh" value="10" step="1">
         </div>
-        <div id="bioDesc" style="font-size:0.7rem; color:#94a3b8; line-height:1.2;">Beep when Knee fully straightens.</div>
       </div>
 
       <div style="margin-top:10px;">
@@ -163,11 +165,11 @@
 
       <div class="footer-section">
         <button id="btnSpecs" class="info-toggle">ℹ️ Validity Specs <span style="font-size:0.6rem">▼</span></button>
-        <div id="specsContent" class="info-box"><ul><li>Accuracy: Mean error 30-50mm.</li><li>Valid for Screening/Research.</li></ul></div>
+        <div id="specsContent" class="info-box"><ul><li>Accuracy: 30-50mm error.</li><li>Valid for Screening/Research.</li></ul></div>
         <button id="btnCamPrep" class="info-toggle">📷 Camera Prep <span style="font-size:0.6rem">▼</span></button>
-        <div id="camPrepContent" class="info-box"><ul><li>Position: Hip height, 90° side view.</li><li>Full body visible. Tripod.</li></ul></div>
+        <div id="camPrepContent" class="info-box"><ul><li>90° Side View.</li><li>Tripod required.</li></ul></div>
         <button id="btnPrivacy" class="info-toggle">🔒 Privacy <span style="font-size:0.6rem">▼</span></button>
-        <div id="privacyContent" class="info-box"><ul><li>Local Processing. No Cloud.</li><li>GDPR Compliant.</li></ul></div>
+        <div id="privacyContent" class="info-box"><ul><li>Local Processing.</li><li>GDPR Compliant.</li></ul></div>
         <div class="footer-credit">© Development by <br><a href="https://giorgosbouh.github.io/github-portfolio/" target="_blank">Dr. Georgios Bouchouras</a></div>
       </div>
     </aside>
@@ -216,13 +218,15 @@
     import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
     import { PoseLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
 
+    // --- CONFIG ---
     const MODEL_PATH = "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task";
-    
-    // State
+    // *** SERVER SETTINGS ***
+    const OLLAMA_URL = "http://localhost:11434/api/generate";
+    const AI_MODEL_NAME = "phi3"; 
+
     const state = { calibrated: false, recording: false, validating: false, scale: 1.0, frames: [], validationBuffer: [], calibrationBuffer: [] };
     const audioState = { ctx: null, lastTrigger: 0, cooldown: 1000, metroNext: 0 }; 
 
-    // UI Refs
     const els = {
       loading: document.getElementById('loadingScreen'), status: document.getElementById('statusBadge'), vid: document.getElementById('videoElement'),
       btnCam: document.getElementById('btnCamera'), btnCal: document.getElementById('btnCalibrate'), btnVal: document.getElementById('btnValidate'),
@@ -230,77 +234,99 @@
       lblScale: document.getElementById('lblScale'), calBar: document.getElementById('calibBar'), calProg: document.getElementById('calibProgress'),
       modalReport: document.getElementById('reportModal'), modalVal: document.getElementById('valModal'), valResults: document.getElementById('valResults'), reportContent: document.getElementById('reportContent'),
       dispRK: document.getElementById('dispRK'), dispLK: document.getElementById('dispLK'), dispRH: document.getElementById('dispRH'), dispLH: document.getElementById('dispLH'),
-      // Toggles & Bio
       btnPrivacy: document.getElementById('btnPrivacy'), privacyContent: document.getElementById('privacyContent'),
       btnSpecs: document.getElementById('btnSpecs'), specsContent: document.getElementById('specsContent'),
       btnCamPrep: document.getElementById('btnCamPrep'), camPrepContent: document.getElementById('camPrepContent'),
-      chkAudio: document.getElementById('chkAudio'), bioThresh: document.getElementById('bioThresh'), bioMode: document.getElementById('bioMode'), bioDesc: document.getElementById('bioDesc'), lblBioTarget: document.getElementById('lblBioTarget')
+      chkAudio: document.getElementById('chkAudio'), bioThresh: document.getElementById('bioThresh'), bioMode: document.getElementById('bioMode'), lblBioTarget: document.getElementById('lblBioTarget')
     };
 
     let scene, camera, renderer, controls, poseLandmarker;
     const joints = [], bones = [];
 
-    // --- AUDIO & LOGIC ---
-    function initAudio() {
-      if(!audioState.ctx) audioState.ctx = new (window.AudioContext || window.webkitAudioContext)();
-      if(audioState.ctx.state === 'suspended') audioState.ctx.resume();
-    }
-    function playDing() {
-      if(!audioState.ctx) return;
-      const t = audioState.ctx.currentTime, osc = audioState.ctx.createOscillator(), g = audioState.ctx.createGain();
-      osc.connect(g); g.connect(audioState.ctx.destination);
-      osc.type = 'sine'; osc.frequency.setValueAtTime(800, t); osc.frequency.exponentialRampToValueAtTime(1200, t+0.1);
-      g.gain.setValueAtTime(0.3, t); g.gain.exponentialRampToValueAtTime(0.01, t+0.3);
-      osc.start(t); osc.stop(t+0.3);
-    }
-    function playTick() {
-      if(!audioState.ctx) return;
-      const t = audioState.ctx.currentTime, osc = audioState.ctx.createOscillator(), g = audioState.ctx.createGain();
-      osc.connect(g); g.connect(audioState.ctx.destination);
-      osc.frequency.setValueAtTime(1000, t); g.gain.setValueAtTime(0.2, t); g.gain.exponentialRampToValueAtTime(0.01, t+0.05);
-      osc.start(t); osc.stop(t+0.05);
+    // --- AI SERVER LOGIC ---
+    window.askOllama = async function(speed, cadence, kneeExt) {
+      const box = document.getElementById('aiBox');
+      const btn = document.getElementById('btnAskAI');
+      
+      box.style.display = 'block';
+      box.innerHTML = `<span class="ai-loading">🤖 Thinking... Sending data to local server...</span>`;
+      btn.disabled = true;
+
+      const prompt = `
+        You are an expert biomechanist/physiotherapist. 
+        Analyze the following gait data for a patient:
+        - Walking Speed: ${speed} m/s (Normal Reference: 1.2 - 1.4 m/s)
+        - Cadence: ${cadence} steps/min (Normal Reference: 100 - 115 spm)
+        - Knee Extension at Stance: ${kneeExt} degrees (Target: < 5 degrees)
+
+        Instructions:
+        1. Identify the primary gait deviation based on these numbers.
+        2. Suggest 2 specific corrective exercises.
+        3. Keep the response professional, concise, and under 80 words.
+      `;
+
+      try {
+        const response = await fetch(OLLAMA_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: AI_MODEL_NAME,
+            prompt: prompt,
+            stream: false
+          })
+        });
+
+        if (!response.ok) throw new Error("Server Error");
+        const json = await response.json();
+        
+        box.innerHTML = `<strong>🧠 AI Analysis (${AI_MODEL_NAME}):</strong><br>${json.response}`;
+      } catch (err) {
+        console.error(err);
+        box.innerHTML = `
+          <strong style="color:var(--danger)">Connection Failed!</strong><br>
+          Could not connect to Ollama at ${OLLAMA_URL}.<br><br>
+          <strong>Troubleshooting:</strong><br>
+          1. Is Ollama running? (Run 'ollama serve' in terminal)<br>
+          2. <strong>CORS Error?</strong> Ensure you ran:<br>
+          <code>OLLAMA_ORIGINS="*" ollama serve</code><br>
+        `;
+      }
+      btn.disabled = false;
     }
 
-    // Dynamic UI Change
+    // --- AUDIO & LOGIC ---
+    function initAudio() { if(!audioState.ctx) audioState.ctx = new (window.AudioContext || window.webkitAudioContext)(); if(audioState.ctx.state === 'suspended') audioState.ctx.resume(); }
+    function playDing() { if(!audioState.ctx) return; const t=audioState.ctx.currentTime, o=audioState.ctx.createOscillator(), g=audioState.ctx.createGain(); o.connect(g); g.connect(audioState.ctx.destination); o.type='sine'; o.frequency.setValueAtTime(800,t); o.frequency.exponentialRampToValueAtTime(1200,t+0.1); g.gain.setValueAtTime(0.3,t); g.gain.exponentialRampToValueAtTime(0.01,t+0.3); o.start(t); o.stop(t+0.3); }
+    function playTick() { if(!audioState.ctx) return; const t=audioState.ctx.currentTime, o=audioState.ctx.createOscillator(), g=audioState.ctx.createGain(); o.connect(g); g.connect(audioState.ctx.destination); o.frequency.setValueAtTime(1000,t); g.gain.setValueAtTime(0.2,t); g.gain.exponentialRampToValueAtTime(0.01,t+0.05); o.start(t); o.stop(t+0.05); }
+
     els.bioMode.addEventListener('change', () => {
       const m = els.bioMode.value;
-      if (m === 'knee_ext') { els.lblBioTarget.innerText = "Target Angle (< °)"; els.bioThresh.value = 10; els.bioDesc.innerText = "Beep when Knee straightens."; }
-      else if (m === 'knee_flex') { els.lblBioTarget.innerText = "Target Angle (> °)"; els.bioThresh.value = 60; els.bioDesc.innerText = "Beep when Knee bends enough."; }
-      else if (m === 'hip_flex') { els.lblBioTarget.innerText = "Target Angle (< °)"; els.bioThresh.value = 140; els.bioDesc.innerText = "Beep on High Knee lift."; }
-      else if (m === 'metro') { els.lblBioTarget.innerText = "Target Rhythm (BPM)"; els.bioThresh.value = 100; els.bioDesc.innerText = "Constant beat."; }
+      if (m === 'knee_ext') { els.lblBioTarget.innerText = "Target Angle (< °)"; els.bioThresh.value = 10; }
+      else if (m === 'knee_flex') { els.lblBioTarget.innerText = "Target Angle (> °)"; els.bioThresh.value = 60; }
+      else if (m === 'hip_flex') { els.lblBioTarget.innerText = "Target Angle (< °)"; els.bioThresh.value = 140; }
+      else if (m === 'metro') { els.lblBioTarget.innerText = "Target Rhythm (BPM)"; els.bioThresh.value = 100; }
     });
 
     function checkBiofeedback(ang) {
       if (!els.chkAudio.checked) return;
-      const th = parseFloat(els.bioThresh.value) || 10;
-      const now = performance.now();
-      const mode = els.bioMode.value;
-
-      if (mode === 'metro') {
+      const th = parseFloat(els.bioThresh.value) || 10, now = performance.now();
+      if (els.bioMode.value === 'metro') {
         const interval = 60000 / th; 
         if (now > audioState.metroNext) { playTick(); audioState.metroNext = now + interval; }
-        if (audioState.metroNext === 0) audioState.metroNext = now + interval; // Init
+        if (audioState.metroNext === 0) audioState.metroNext = now + interval;
         return;
       }
-
-      // Logic check with cooldown
       if (now - audioState.lastTrigger < audioState.cooldown) return;
-
       let trigger = false;
-      if (mode === 'knee_ext') { if(ang.rK < th || ang.lK < th) trigger = true; }
-      else if (mode === 'knee_flex') { if(ang.rK > th || ang.lK > th) trigger = true; }
-      else if (mode === 'hip_flex') { 
-        // Hip angle: 180 is straight. Flexion < 180 (e.g. 120 is high lift)
-        if(ang.rH < th || ang.lH < th) trigger = true; 
-      }
-
+      if (els.bioMode.value === 'knee_ext') { if(ang.rK < th || ang.lK < th) trigger = true; }
+      else if (els.bioMode.value === 'knee_flex') { if(ang.rK > th || ang.lK > th) trigger = true; }
+      else if (els.bioMode.value === 'hip_flex') { if(ang.rH < th || ang.lH < th) trigger = true; }
       if (trigger) { playDing(); audioState.lastTrigger = now; }
     }
 
-    // --- INIT ---
+    // --- STANDARD APP LOGIC ---
     async function init() {
-      initThreeJS(); setupToggles();
-      els.chkAudio.addEventListener('change', initAudio);
+      initThreeJS(); setupToggles(); els.chkAudio.addEventListener('change', initAudio);
       try {
         const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.9/wasm");
         poseLandmarker = await PoseLandmarker.createFromOptions(vision, { baseOptions: { modelAssetPath: MODEL_PATH, delegate: "GPU" }, runningMode: "VIDEO", numPoses: 1 });
@@ -310,14 +336,9 @@
 
     function initThreeJS() {
       const cont = document.getElementById('canvasContainer');
-      scene = new THREE.Scene();
-      camera = new THREE.PerspectiveCamera(50, cont.clientWidth/cont.clientHeight, 0.1, 100);
-      camera.position.set(0, 1.2, 3.5);
-      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-      renderer.setSize(cont.clientWidth, cont.clientHeight);
-      cont.appendChild(renderer.domElement);
-      controls = new OrbitControls(camera, renderer.domElement);
-      controls.target.set(0, 0.9, 0); controls.enableDamping = true;
+      scene = new THREE.Scene(); camera = new THREE.PerspectiveCamera(50, cont.clientWidth/cont.clientHeight, 0.1, 100); camera.position.set(0, 1.2, 3.5);
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); renderer.setSize(cont.clientWidth, cont.clientHeight); cont.appendChild(renderer.domElement);
+      controls = new OrbitControls(camera, renderer.domElement); controls.target.set(0, 0.9, 0); controls.enableDamping = true;
       scene.add(new THREE.GridHelper(6, 12, 0x334155, 0x000000));
       const light = new THREE.DirectionalLight(0xffffff, 1.5); light.position.set(2, 5, 5); scene.add(light); scene.add(new THREE.AmbientLight(0xffffff, 0.6));
       const jGeo = new THREE.SphereGeometry(0.04); const jMat = new THREE.MeshStandardMaterial({color: 0xffffff});
@@ -333,28 +354,21 @@
       .forEach(([btn, content]) => btn.addEventListener('click', () => content.style.display = content.style.display === 'block' ? 'none' : 'block'));
     }
 
-    // --- ACTIONS ---
     els.btnCam.addEventListener('click', async () => {
       try {
         const s = await navigator.mediaDevices.getUserMedia({video: {width: 1280, height: 720}});
         els.vid.srcObject = s;
-        els.vid.onloadeddata = () => {
-          els.btnCam.disabled = true; els.btnVal.disabled = false; els.btnCal.disabled = false;
-          els.status.innerText = "PREVIEW MODE"; els.status.style.background = "#0ea5e9";
-          predictLoop();
-        };
+        els.vid.onloadeddata = () => { els.btnCam.disabled = true; els.btnVal.disabled = false; els.btnCal.disabled = false; els.status.innerText = "PREVIEW MODE"; els.status.style.background = "#0ea5e9"; predictLoop(); };
       } catch (e) { alert("Camera Denied"); }
     });
 
-    // VALIDATION & CALIBRATION (Both use countdown)
-    async function runCountdown(actionCallback) {
-      els.btnVal.disabled = true; els.btnCal.disabled = true;
-      els.modalVal.style.display = 'flex';
+    async function runCountdown(cb) {
+      els.btnVal.disabled = true; els.btnCal.disabled = true; els.modalVal.style.display = 'flex';
       for(let i=3; i>0; i--) {
         els.valResults.innerHTML = `<h1 style="text-align:center; font-size:4rem; color:#f59e0b; margin:20px 0;">${i}</h1><p style="text-align:center; color:#94a3b8;">Get Ready (T-Pose)</p>`;
         await new Promise(r => setTimeout(r, 1000));
       }
-      actionCallback();
+      cb();
     }
 
     els.btnVal.addEventListener('click', () => {
@@ -367,10 +381,7 @@
 
     els.btnCal.addEventListener('click', () => {
       runCountdown(() => {
-        els.modalVal.style.display = 'none'; // Hide countdown
-        state.calibrationBuffer = []; 
-        els.calProg.style.display = 'block'; els.calBar.style.width = '0%';
-        els.status.innerText = "CAPTURING..."; els.status.style.background = "#ef4444";
+        els.modalVal.style.display = 'none'; state.calibrationBuffer = []; els.calProg.style.display = 'block'; els.calBar.style.width = '0%'; els.status.innerText = "CAPTURING..."; els.status.style.background = "#ef4444";
         let p = 0; const t = setInterval(() => { p += 5; els.calBar.style.width = p+"%"; if(p>=100){ clearInterval(t); finishCalibration(); } }, 150);
         state.calibrating = true;
       });
@@ -379,27 +390,19 @@
     function runValidationChecks() {
       const data = state.validationBuffer;
       if (data.length < 30) { els.valResults.innerHTML = "<p class='fail'>Error: Not enough data.</p>"; return; }
-      
       const hipZs = data.map(d => d[24].z); const meanZ = hipZs.reduce((a,b)=>a+b,0)/hipZs.length;
       const stdZ = Math.sqrt(hipZs.map(x => Math.pow(x-meanZ,2)).reduce((a,b)=>a+b)/hipZs.length);
-      const noiseClass = stdZ < 0.02 ? "pass" : "fail"; const noiseScore = stdZ < 0.02 ? "PASS (Low Jitter)" : "FAIL (High Noise)";
-
       const femurs = data.map(d => { const h=d[24], k=d[26]; return Math.sqrt((h.x-k.x)**2 + (h.y-k.y)**2 + (h.z-k.z)**2); });
       const meanF = femurs.reduce((a,b)=>a+b,0)/femurs.length;
       const stdF = Math.sqrt(femurs.map(x => Math.pow(x-meanF,2)).reduce((a,b)=>a+b)/femurs.length);
       const cvF = (stdF/meanF)*100;
-      const boneClass = cvF < 5 ? "pass" : "fail"; const boneScore = cvF < 5 ? "PASS (<5% Var)" : "FAIL (Unstable)";
-
       const lowestYs = data.map(d => Math.max(d[29].y, d[30].y));
       const stdLow = Math.sqrt(lowestYs.map(x => Math.pow(x-(lowestYs.reduce((a,b)=>a+b,0)/lowestYs.length),2)).reduce((a,b)=>a+b)/lowestYs.length);
-      const floorClass = stdLow < 0.02 ? "pass" : "warn"; const floorScore = stdLow < 0.02 ? "PASS (Stable)" : "WARN (Check Floor)";
-
       els.valResults.innerHTML = `
         <h3 style="color:#fff; border-bottom:1px solid #334155; padding-bottom:5px;">Ground Truth Report</h3>
-        <div class="valid-row"><span>Signal Stability</span><span class="${noiseClass}">${noiseScore}</span></div>
-        <div class="valid-row"><span>Bone Length Consistency</span><span class="${boneClass}">${boneScore}</span></div>
-        <div class="valid-row"><span>Floor Contact Check</span><span class="${floorClass}">${floorScore}</span></div>
-        <div class="valid-row"><span>Overall Confidence</span><span style="color:#fff">${(100-cvF).toFixed(1)}%</span></div>
+        <div class="valid-row"><span>Stability</span><span class="${stdZ<0.02?'pass':'fail'}">${stdZ<0.02?'PASS':'FAIL'}</span></div>
+        <div class="valid-row"><span>Bone Const.</span><span class="${cvF<5?'pass':'fail'}">${cvF<5?'PASS':'FAIL'}</span></div>
+        <div class="valid-row"><span>Floor Check</span><span class="${stdLow<0.02?'pass':'warn'}">${stdLow<0.02?'PASS':'WARN'}</span></div>
       `;
     }
 
@@ -413,25 +416,10 @@
       els.status.innerText = "CALIBRATED"; els.status.style.background = "#10b981";
     }
 
-    els.btnRec.addEventListener('click', () => {
-      state.frames = []; state.recording = true;
-      els.btnRec.disabled = true; els.btnStop.disabled = false; els.btnReset.disabled = true;
-      els.status.innerText = "RECORDING..."; els.status.style.background = "#ef4444";
-    });
+    els.btnRec.addEventListener('click', () => { state.frames = []; state.recording = true; els.btnRec.disabled = true; els.btnStop.disabled = false; els.btnReset.disabled = true; els.status.innerText = "RECORDING..."; els.status.style.background = "#ef4444"; });
+    els.btnStop.addEventListener('click', () => { state.recording = false; els.btnStop.disabled = true; els.btnReset.disabled = false; els.btnExp.disabled = false; els.status.innerText = "ANALYZING..."; els.status.style.background = "#8b5cf6"; performAnalysis(); });
+    els.btnReset.addEventListener('click', () => { state.frames = []; els.btnRec.disabled = false; els.btnStop.disabled = true; els.btnReset.disabled = true; els.btnExp.disabled = true; els.modalReport.style.display = 'none'; els.status.innerText = "READY"; els.status.style.background = "#10b981"; });
 
-    els.btnStop.addEventListener('click', () => {
-      state.recording = false;
-      els.btnStop.disabled = true; els.btnReset.disabled = false; els.btnExp.disabled = false;
-      els.status.innerText = "ANALYZING..."; els.status.style.background = "#8b5cf6";
-      performAnalysis();
-    });
-
-    els.btnReset.addEventListener('click', () => {
-      state.frames = []; els.btnRec.disabled = false; els.btnStop.disabled = true; els.btnReset.disabled = true; els.btnExp.disabled = true;
-      els.modalReport.style.display = 'none'; els.status.innerText = "READY"; els.status.style.background = "#10b981";
-    });
-
-    // --- LOOP ---
     let lastT = -1;
     function predictLoop() {
       if (els.vid.currentTime !== lastT) {
@@ -440,20 +428,15 @@
         if (res.worldLandmarks.length) {
           const lm = res.worldLandmarks[0];
           drawSkeleton(lm);
-          
           if (state.validating) state.validationBuffer.push(lm);
           if (state.calibrating) state.calibrationBuffer.push(Math.abs(lm[0].y - (lm[27].y+lm[28].y)/2));
           if (state.recording) {
             const ang = computeAngles(lm);
             state.frames.push({ t: els.vid.currentTime, lm: JSON.parse(JSON.stringify(lm)), ang });
-            els.dispRK.innerText = ang.rK.toFixed(0) + "°"; els.dispLK.innerText = ang.lK.toFixed(0) + "°";
-            els.dispRH.innerText = ang.rH.toFixed(0) + "°"; els.dispLH.innerText = ang.lH.toFixed(0) + "°";
+            els.dispRK.innerText = ang.rK.toFixed(0) + "°"; els.dispLK.innerText = ang.lK.toFixed(0) + "°"; els.dispRH.innerText = ang.rH.toFixed(0) + "°"; els.dispLH.innerText = ang.lH.toFixed(0) + "°";
             checkBiofeedback(ang);
           } else if (els.chkAudio.checked && els.bioMode.value === 'metro') {
-             // Allow metronome even if not recording (for practice)
-             const th = parseFloat(els.bioThresh.value) || 100;
-             const now = performance.now();
-             const interval = 60000 / th;
+             const th = parseFloat(els.bioThresh.value) || 100; const now = performance.now(); const interval = 60000 / th;
              if (now > audioState.metroNext) { playTick(); audioState.metroNext = now + interval; }
              if (audioState.metroNext === 0) audioState.metroNext = now + interval;
           }
@@ -464,25 +447,19 @@
 
     function drawSkeleton(lm) {
       const s = state.calibrated ? state.scale : 1.0;
-      for (let i=0; i<33; i++) {
-        joints[i].position.set(lm[i].x*s, -lm[i].y*s + (state.calibrated ? 1 : 0), -lm[i].z*s);
-        joints[i].visible = true;
-        joints[i].material.color.setHex((i>10 && i%2!==0) ? 0x0ea5e9 : (i>10?0xef4444:0xffffff));
-      }
+      for (let i=0; i<33; i++) { joints[i].position.set(lm[i].x*s, -lm[i].y*s + (state.calibrated ? 1 : 0), -lm[i].z*s); joints[i].visible = true; }
       bones.forEach(b => {
         const p1 = joints[b.s].position, p2 = joints[b.e].position;
         b.mesh.position.copy(p1).add(p2).multiplyScalar(0.5);
         b.mesh.lookAt(p2); b.mesh.rotateX(Math.PI/2);
-        b.mesh.scale.set(1, p1.distanceTo(p2), 1);
-        b.mesh.visible = true;
+        b.mesh.scale.set(1, p1.distanceTo(p2), 1); b.mesh.visible = true;
       });
     }
 
     function computeAngles(lm) {
       const getA = (a,b,c) => {
         const v1={x:a.x-b.x,y:a.y-b.y,z:a.z-b.z}, v2={x:c.x-b.x,y:c.y-b.y,z:c.z-b.z};
-        const dot = v1.x*v2.x+v1.y*v2.y+v1.z*v2.z;
-        const m = Math.sqrt(v1.x**2+v1.y**2+v1.z**2) * Math.sqrt(v2.x**2+v2.y**2+v2.z**2);
+        const dot = v1.x*v2.x+v1.y*v2.y+v1.z*v2.z; const m = Math.sqrt(v1.x**2+v1.y**2+v1.z**2) * Math.sqrt(v2.x**2+v2.y**2+v2.z**2);
         return 180 - (Math.acos(dot/m)*180/Math.PI);
       };
       return { rK: getA(lm[24],lm[26],lm[28]), lK: getA(lm[23],lm[25],lm[27]), rH: getA(lm[12],lm[24],lm[26]), lH: getA(lm[11],lm[23],lm[25]), rA: getA(lm[26],lm[28],lm[32]), lA: getA(lm[25],lm[27],lm[31]) };
@@ -491,59 +468,26 @@
     function performAnalysis() {
       const fr = state.frames, s = state.scale;
       if (fr.length < 30) { alert("Recording too short"); return; }
-      
-      const sep = fr.map(f => Math.abs(f.lm[27].x - f.lm[28].x));
-      const smoothSep = [];
-      for(let i=0; i<sep.length; i++) {
-        let sum=0, cnt=0;
-        for(let j=Math.max(0,i-3); j<=Math.min(sep.length-1,i+3); j++){ sum+=sep[j]; cnt++; }
-        smoothSep.push(sum/cnt);
-      }
-
-      const peaks = [];
-      for(let i=2; i<smoothSep.length-2; i++) {
-        if (smoothSep[i]>smoothSep[i-1] && smoothSep[i]>smoothSep[i+1] && smoothSep[i]>0.15) {
-          if(!peaks.length || (i-peaks[peaks.length-1])>15) peaks.push(i);
-        }
-      }
-      
-      const steps = peaks.length;
-      const dur = fr[fr.length-1].t - fr[0].t;
-      const cad = steps > 0 ? (steps / (dur/60)) : 0;
-      const stride = steps > 0 ? (peaks.map(i => smoothSep[i]*s).reduce((a,b)=>a+b,0)/steps * 2) : 0;
-      const spd = (steps * (stride/2)) / dur;
-
+      const sep = fr.map(f => Math.abs(f.lm[27].x - f.lm[28].x)); const smoothSep = []; for(let i=0; i<sep.length; i++) { let sum=0, cnt=0; for(let j=Math.max(0,i-3); j<=Math.min(sep.length-1,i+3); j++){ sum+=sep[j]; cnt++; } smoothSep.push(sum/cnt); }
+      const peaks = []; for(let i=2; i<smoothSep.length-2; i++) { if (smoothSep[i]>smoothSep[i-1] && smoothSep[i]>smoothSep[i+1] && smoothSep[i]>0.15) { if(!peaks.length || (i-peaks[peaks.length-1])>15) peaks.push(i); } }
+      const steps = peaks.length; const dur = fr[fr.length-1].t - fr[0].t; const cad = steps > 0 ? (steps / (dur/60)) : 0; const stride = steps > 0 ? (peaks.map(i => smoothSep[i]*s).reduce((a,b)=>a+b,0)/steps * 2) : 0; const spd = (steps * (stride/2)) / dur;
       const ev = { r_ic:[], r_mst:[], r_po:[], r_sw:[], l_ic:[], l_mst:[], l_po:[], l_sw:[] };
-      peaks.forEach(i => {
-        if (fr[i].ang.lK < fr[i].ang.rK) { ev.l_ic.push(i); ev.r_po.push(i); } else { ev.r_ic.push(i); ev.l_po.push(i); }
-      });
-      for(let k=0; k<peaks.length-1; k++) {
-        const m = Math.floor((peaks[k]+peaks[k+1])/2);
-        if (fr[peaks[k]].ang.rK > fr[peaks[k]].ang.lK) { ev.r_mst.push(m); ev.l_sw.push(m); } else { ev.l_mst.push(m); ev.r_sw.push(m); }
-      }
-
+      peaks.forEach(i => { if (fr[i].ang.lK < fr[i].ang.rK) { ev.l_ic.push(i); ev.r_po.push(i); } else { ev.r_ic.push(i); ev.l_po.push(i); } });
+      for(let k=0; k<peaks.length-1; k++) { const m = Math.floor((peaks[k]+peaks[k+1])/2); if (fr[peaks[k]].ang.rK > fr[peaks[k]].ang.lK) { ev.r_mst.push(m); ev.l_sw.push(m); } else { ev.l_mst.push(m); ev.r_sw.push(m); } }
       const avg = (arr, k) => !arr.length ? "-" : (arr.reduce((a,x)=>a+fr[x].ang[k],0)/arr.length).toFixed(1);
 
-      let h = `<div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
-        <div><h3>Spatio-Temporal</h3><table class="report-table">
-          <tr><td>Speed</td><td class="val">${spd ? spd.toFixed(2) : 0} m/s</td></tr>
-          <tr><td>Cadence</td><td class="val">${cad.toFixed(0)} spm</td></tr>
-          <tr><td>Stride</td><td class="val">${stride.toFixed(2)} m</td></tr>
-        </table></div>
-        <div><h3>Cycle</h3><table class="report-table">
-          <tr><td>Steps</td><td class="val">${steps}</td></tr>
-          <tr><td>Duration</td><td class="val">${dur.toFixed(1)} s</td></tr>
-        </table></div></div>
-        <h3 style="margin-top:20px;">Kinematics (Avg Degrees)</h3>
-        <table class="report-table"><thead><tr><th>Joint</th><th>IC</th><th>MSt</th><th>PO</th><th>Sw</th></tr></thead><tbody>`;
-        
+      let h = `<div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;"><div><h3>Spatio-Temporal</h3><table class="report-table"><tr><td>Speed</td><td class="val">${spd?spd.toFixed(2):0} m/s</td></tr><tr><td>Cadence</td><td class="val">${cad.toFixed(0)} spm</td></tr><tr><td>Stride</td><td class="val">${stride.toFixed(2)} m</td></tr></table></div><div><h3>Cycle</h3><table class="report-table"><tr><td>Steps</td><td class="val">${steps}</td></tr><tr><td>Duration</td><td class="val">${dur.toFixed(1)} s</td></tr></table></div></div><h3 style="margin-top:20px;">Kinematics (Avg Degrees)</h3><table class="report-table"><thead><tr><th>Joint</th><th>IC</th><th>MSt</th><th>PO</th><th>Sw</th></tr></thead><tbody>`;
       const rows = [ ['Right Hip', 'rH', 'r'], ['Left Hip', 'lH', 'l'], ['Right Knee', 'rK', 'r'], ['Left Knee', 'lK', 'l'], ['Right Ankle', 'rA', 'r'], ['Left Ankle', 'lA', 'l'] ];
-      rows.forEach(([name, key, side]) => {
-        h += `<tr><td><strong>${name}</strong></td>
-          <td>${avg(ev[side+'_ic'], key)}</td><td>${avg(ev[side+'_mst'], key)}</td>
-          <td>${avg(ev[side+'_po'], key)}</td><td>${avg(ev[side+'_sw'], key)}</td></tr>`;
-      });
-      h += `</tbody></table>`;
+      rows.forEach(([name, key, side]) => { h += `<tr><td><strong>${name}</strong></td><td>${avg(ev[side+'_ic'], key)}</td><td>${avg(ev[side+'_mst'], key)}</td><td>${avg(ev[side+'_po'], key)}</td><td>${avg(ev[side+'_sw'], key)}</td></tr>`; });
+      h += `</tbody></table>
+      
+      <div class="ai-container">
+        <h3 style="color:var(--ai);">🤖 AI Assistant (Phi-3)</h3>
+        <p style="font-size:0.8rem; color:#94a3b8;">Click below to send this data to your local LLM for analysis.</p>
+        <button class="btn btn-ai" id="btnAskAI" onclick="window.askOllama('${spd?spd.toFixed(2):0}', '${cad.toFixed(0)}', '${avg(ev.r_mst, 'rK')}')">🧠 Ask Phi-3 for Advice</button>
+        <div class="ai-box" id="aiBox">Response will appear here...</div>
+      </div>
+      `;
 
       els.reportContent.innerHTML = h;
       els.modalReport.style.display = 'flex';
