@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BioGait 3D - v5.7 Final AI</title>
+  <title>BioGait 3D - v5.8 Final AI</title>
 
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 
@@ -103,7 +103,7 @@
 
   <div class="app-container">
     <header class="header">
-      <h1>BioGait 3D <span style="font-size:0.7em; color:#64748b; margin-left:5px;">v5.7 Final AI</span></h1>
+      <h1>BioGait 3D <span style="font-size:0.7em; color:#64748b; margin-left:5px;">v5.8 Final AI</span></h1>
       <div id="statusBadge" class="status-badge">SYSTEM LOADING</div>
     </header>
 
@@ -223,7 +223,9 @@
     
     // *** SERVER SETTINGS (NGROK) ***
     // NOTICE: We add /api/generate at the end
-    const OLLAMA_URL = "https://c7543bc59e9d.ngrok-free.app/api/generate";    
+    // *** ΑΥΤΟ ΕΙΝΑΙ ΤΟ ΝΕΟ ΣΩΣΤΟ LINK ***
+    const OLLAMA_URL = "https://6245181b0114.ngrok-free.app/api/generate";
+    
     const AI_MODEL_NAME = "phi3"; 
     const state = { calibrated: false, recording: false, validating: false, scale: 1.0, frames: [], validationBuffer: [], calibrationBuffer: [] };
     const audioState = { ctx: null, lastTrigger: 0, cooldown: 1000, metroNext: 0 }; 
