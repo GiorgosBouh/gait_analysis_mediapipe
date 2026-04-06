@@ -5,6 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>BioGait 3D - v5.8 Final AI</title>
 
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <link rel="preconnect" href="https://unpkg.com">
+  <link rel="preconnect" href="https://storage.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 
   <style>
@@ -258,7 +263,7 @@
     import { PoseLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
 
     // --- CONFIG ---
-    const MODEL_PATH = "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task";
+    const MODEL_PATH = "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task";
     const CLINICAL_THRESHOLDS = {
       speed: { household: 0.4, community: 0.8, healthyComfortable: 1.2, brisk: 1.6 },
       cadence: { low: 90, moderate: 100, brisk: 130 },
@@ -321,7 +326,7 @@
       livePanelTitle: document.getElementById('livePanelTitle')
     };
 
-    let scene, camera, renderer, controls, poseLandmarker;
+    let scene, camera, renderer, controls, poseLandmarker, poseInitPromise = null, predictStarted = false;
     const joints = [], bones = [];
 
     function escapeHtml(value) {
@@ -740,13 +745,33 @@
     }
 
     // --- STANDARD APP LOGIC ---
+    async function ensurePoseLandmarker() {
+      if (poseLandmarker) return poseLandmarker;
+      if (!poseInitPromise) {
+        poseInitPromise = (async () => {
+          els.status.innerText = "LOADING POSE MODEL";
+          els.status.style.background = "#f59e0b";
+          const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.9/wasm");
+          poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
+            baseOptions: { modelAssetPath: MODEL_PATH, delegate: "GPU" },
+            runningMode: "VIDEO",
+            numPoses: 1
+          });
+          return poseLandmarker;
+        })().catch(err => {
+          poseInitPromise = null;
+          throw err;
+        });
+      }
+      return poseInitPromise;
+    }
+
     async function init() {
       initThreeJS(); setupToggles(); els.chkAudio.addEventListener('change', initAudio);
-      try {
-        const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.9/wasm");
-        poseLandmarker = await PoseLandmarker.createFromOptions(vision, { baseOptions: { modelAssetPath: MODEL_PATH, delegate: "GPU" }, runningMode: "VIDEO", numPoses: 1 });
-        els.loading.style.display = 'none'; els.status.innerText = "READY"; els.status.style.background = "#10b981"; els.btnCam.disabled = false;
-      } catch (err) { alert("Init Error: " + err.message); }
+      els.loading.style.display = 'none';
+      els.status.innerText = "READY";
+      els.status.style.background = "#10b981";
+      els.btnCam.disabled = false;
     }
 
     function initThreeJS() {
@@ -776,10 +801,32 @@
 
     els.btnCam.addEventListener('click', async () => {
       try {
-        const s = await navigator.mediaDevices.getUserMedia({video: {width: 1280, height: 720}});
+        els.btnCam.disabled = true;
+        els.btnCam.textContent = "Loading Camera...";
+        const [_, s] = await Promise.all([
+          ensurePoseLandmarker(),
+          navigator.mediaDevices.getUserMedia({video: {width: 1280, height: 720}})
+        ]);
         els.vid.srcObject = s;
-        els.vid.onloadeddata = () => { els.btnCam.disabled = true; els.btnVal.disabled = false; els.btnCal.disabled = false; els.status.innerText = `${currentModeConfig().title.toUpperCase()} PREVIEW`; els.status.style.background = "#0ea5e9"; predictLoop(); };
-      } catch (e) { alert("Camera Denied"); }
+        els.vid.onloadeddata = () => {
+          els.btnCam.disabled = true;
+          els.btnCam.textContent = "Camera Active";
+          els.btnVal.disabled = false;
+          els.btnCal.disabled = false;
+          els.status.innerText = `${currentModeConfig().title.toUpperCase()} PREVIEW`;
+          els.status.style.background = "#0ea5e9";
+          if (!predictStarted) {
+            predictStarted = true;
+            predictLoop();
+          }
+        };
+      } catch (e) {
+        els.btnCam.disabled = false;
+        els.btnCam.textContent = "Open Camera";
+        els.status.innerText = "READY";
+        els.status.style.background = "#10b981";
+        alert("Camera / model initialization failed: " + e.message);
+      }
     });
 
     async function runCountdown(label, cb) {
