@@ -37,7 +37,6 @@
     .btn-success { background: var(--success); color: #fff; }
     .btn-danger { background: var(--danger); color: #fff; }
     .btn-warn { background: var(--warn); color: #000; }
-    .btn-ai { background: var(--ai); color: #fff; border: 1px solid #7c3aed; } .btn-ai:hover:not(:disabled) { background: #7c3aed; box-shadow: 0 0 10px rgba(139, 92, 246, 0.5); }
     .btn-secondary { background: #475569; color: #fff; }
     .btn:disabled { opacity: 0.4; cursor: not-allowed; filter: grayscale(1); }
 
@@ -53,19 +52,33 @@
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 200; display: none; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
     .modal-content { background: var(--panel); width: 95%; max-width: 900px; max-height: 90vh; border: 1px solid var(--border); border-radius: 12px; padding: 24px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5); overflow-y: auto; }
     
-    /* AI Response Area */
-    .ai-container { margin-top: 20px; border-top: 1px solid var(--border); padding-top: 20px; }
-    .ai-box { 
-      background: #1e1b4b; border: 1px solid var(--ai); padding: 20px; border-radius: 8px; 
-      font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: #e2e8f0; 
-      min-height: 120px; line-height: 1.6; white-space: pre-wrap; margin-top: 15px; display: none;
+    /* Interpretation Area */
+    .insight-container { margin-top: 20px; border-top: 1px solid var(--border); padding-top: 20px; }
+    .insight-box {
+      background: rgba(14, 165, 233, 0.08);
+      border: 1px solid rgba(14, 165, 233, 0.35);
+      padding: 18px;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      line-height: 1.6;
+      color: #e2e8f0;
     }
-    .ai-loading { color: #f59e0b; font-style: italic; animation: pulse 1.5s infinite; }
-    @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
+    .insight-box p { margin: 0 0 12px; }
+    .insight-list { margin: 10px 0 0; padding-left: 18px; }
+    .insight-list li { margin-bottom: 8px; }
+    .chip-row { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
+    .chip { padding: 4px 10px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.3px; }
+    .chip-good { background: rgba(16, 185, 129, 0.15); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.35); }
+    .chip-warn { background: rgba(245, 158, 11, 0.15); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.35); }
+    .chip-bad { background: rgba(239, 68, 68, 0.15); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.35); }
+    .source-note { font-size: 0.74rem; color: #94a3b8; margin-top: 14px; }
 
     /* Metrics & Footer */
     .metrics-panel { position: absolute; top: 20px; left: 20px; width: 220px; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(4px); padding: 12px; border-radius: 8px; border: 1px solid var(--border); font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; pointer-events: none; user-select: none; z-index: 10; }
     .metric-row { display: flex; justify-content: space-between; margin-bottom: 4px; } .val { color: var(--accent); font-weight: bold; }
+    .val-good { color: #6ee7b7; }
+    .val-warn { color: #fcd34d; }
+    .val-bad { color: #fca5a5; }
     .valid-row { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid var(--border); align-items: center; font-size: 0.85rem; }
     .pass { color: var(--success); font-weight: bold; background: rgba(34, 197, 94, 0.1); padding: 4px 8px; border-radius: 4px; }
     .fail { color: var(--danger); font-weight: bold; background: rgba(239, 68, 68, 0.1); padding: 4px 8px; border-radius: 4px; }
@@ -111,10 +124,19 @@
       <div>
         <div class="section-title">1. Camera & Setup</div>
         <button id="btnCamera" class="btn btn-primary" disabled>Open Camera</button>
+        <div class="input-group" style="margin-top:8px;">
+          <label>Assessment Mode</label>
+          <select id="modeSelect">
+            <option value="gait">Gait Analysis</option>
+            <option value="jump">Jump Test</option>
+            <option value="tug">Timed Up and Go</option>
+          </select>
+        </div>
         <div class="input-group">
           <label>Subject Height (m)</label>
           <input type="number" id="inputHeight" value="1.75" step="0.01">
         </div>
+        <div id="modeProtocol" style="font-size:0.68rem; color:#94a3b8; line-height:1.5; margin-top:6px; border-left:2px solid rgba(148,163,184,0.45); padding-left:8px;"></div>
       </div>
 
       <div>
@@ -126,6 +148,9 @@
         <div class="section-title">3. Calibration</div>
         <button id="btnCalibrate" class="btn btn-success" disabled>Start Calibration</button>
         <div id="calibProgress"><div id="calibBar"></div></div>
+        <div style="font-size:0.68rem; color:#94a3b8; line-height:1.5; margin-top:8px;">
+          Static stance: strict side view, upright trunk, eyes forward, arms by the sides, feet flat, and no movement.
+        </div>
         <div class="input-group" style="margin-top:8px;">
           <input type="text" id="lblScale" value="Uncalibrated" disabled style="text-align:center;">
         </div>
@@ -138,7 +163,7 @@
         <button id="btnReset" class="btn btn-secondary" disabled>Reset</button>
       </div>
 
-      <div class="bio-box">
+      <div class="bio-box" id="bioSection">
         <div class="bio-title">5. Biofeedback (Rehab)</div>
         <div class="input-group" style="display:flex; align-items:center; gap:10px;">
           <input type="checkbox" id="chkAudio" style="width:20px; height:20px;">
@@ -163,11 +188,22 @@
         <button id="btnExport" class="btn btn-primary" disabled>Download CSV</button>
       </div>
 
+      <div style="margin-top:10px;">
+        <div class="section-title">6. Interpretation</div>
+        <div style="font-size:0.75rem; color:#cbd5e1; line-height:1.6; background:rgba(14,165,233,0.08); border:1px solid rgba(14,165,233,0.25); border-radius:8px; padding:10px;">
+          Report explanations are generated locally from evidence-based rules and sanity checks.
+          No cloud model or external AI service is required.
+        </div>
+        <div style="margin-top:8px; font-size:0.68rem; color:#94a3b8; line-height:1.5; border-left:2px solid rgba(148,163,184,0.45); padding-left:8px;">
+          This system is a low-cost markerless gait screening and rehabilitation monitoring tool based on monocular video and MediaPipe pose estimation. It provides automated spatiotemporal estimates and heuristic kinematic interpretation for observational use, but it is not a replacement for instrumented clinical gait laboratory analysis.
+        </div>
+      </div>
+
       <div class="footer-section">
         <button id="btnSpecs" class="info-toggle">ℹ️ Validity Specs <span style="font-size:0.6rem">▼</span></button>
         <div id="specsContent" class="info-box"><ul><li>Accuracy: 30-50mm error.</li><li>Valid for Screening/Research.</li></ul></div>
         <button id="btnCamPrep" class="info-toggle">📷 Camera Prep <span style="font-size:0.6rem">▼</span></button>
-        <div id="camPrepContent" class="info-box"><ul><li>90° Side View.</li><li>Tripod required.</li></ul></div>
+        <div id="camPrepContent" class="info-box"><ul><li>Use a strict 90° side view with the full body visible from head to feet.</li><li>Place the camera on a tripod at pelvis-to-hip height and keep the lens level.</li><li>Keep camera distance, zoom, floor surface, footwear, and lighting stable across sessions.</li><li>For the static stance: stand upright, look forward, keep both arms relaxed by the sides, feet comfortably apart, feet flat on the floor, knees relaxed but not bent, and remain still for a few seconds.</li><li>Gait mode: capture the static baseline first, then record at least 3-5 clean gait cycles.</li><li>Jump mode: start from quiet standing, perform one clear countermovement jump, and land back inside the same side-view capture zone.</li><li>TUG mode: keep the chair, walking path, and turning point inside the same side-view frame, begin seated and still, then finish clearly seated again.</li></ul></div>
         <button id="btnPrivacy" class="info-toggle">🔒 Privacy <span style="font-size:0.6rem">▼</span></button>
         <div id="privacyContent" class="info-box"><ul><li>Local Processing.</li><li>GDPR Compliant.</li></ul></div>
         <div class="footer-credit">© Development by <br><a href="https://giorgosbouh.github.io/github-portfolio/" target="_blank">Dr. Georgios Bouchouras</a></div>
@@ -176,11 +212,14 @@
 
     <main class="main-view" id="canvasContainer">
       <div class="metrics-panel">
-        <div class="metric-row" style="color:#fff; border-bottom:1px solid #334155; margin-bottom:8px;">LIVE KINEMATICS</div>
+        <div class="metric-row" id="livePanelTitle" style="color:#fff; border-bottom:1px solid #334155; margin-bottom:8px;">GAIT LIVE</div>
         <div class="metric-row"><span>R.Knee:</span> <span class="val" id="dispRK">0°</span></div>
         <div class="metric-row"><span>L.Knee:</span> <span class="val" id="dispLK">0°</span></div>
         <div class="metric-row"><span>R.Hip:</span> <span class="val" id="dispRH">0°</span></div>
         <div class="metric-row"><span>L.Hip:</span> <span class="val" id="dispLH">0°</span></div>
+        <div class="metric-row"><span>R.Ankle:</span> <span class="val" id="dispRA">0°</span></div>
+        <div class="metric-row"><span>L.Ankle:</span> <span class="val" id="dispLA">0°</span></div>
+        <div style="margin-top:6px; color:#94a3b8; font-size:0.65rem; border-top:1px solid #334155; padding-top:6px;">Ankle: dorsiflexion + / plantarflexion -</div>
       </div>
     </main>
 
@@ -203,7 +242,7 @@
   <div class="modal-overlay" id="reportModal">
     <div class="modal-content" style="max-width:1000px;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-        <h2 style="color:var(--accent); margin:0;">Gait Analysis Report</h2>
+        <h2 id="reportTitle" style="color:var(--accent); margin:0;">Analysis Report</h2>
         <button onclick="document.getElementById('reportModal').style.display='none'" style="background:none; border:none; color:#fff; font-size:1.5rem; cursor:pointer;">&times;</button>
       </div>
       <div id="reportContent"></div>
@@ -220,13 +259,51 @@
 
     // --- CONFIG ---
     const MODEL_PATH = "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task";
-    
-    // *** SERVER SETTINGS (NGROK) ***
-    // NOTICE: We add /api/generate at the end
-    // *** ΑΥΤΟ ΕΙΝΑΙ ΤΟ ΝΕΟ ΣΩΣΤΟ LINK ***
-    const OLLAMA_URL = "https://6245181b0114.ngrok-free.app/api/generate";    
-    const AI_MODEL_NAME = "phi3"; 
-    const state = { calibrated: false, recording: false, validating: false, scale: 1.0, frames: [], validationBuffer: [], calibrationBuffer: [] };
+    const CLINICAL_THRESHOLDS = {
+      speed: { household: 0.4, community: 0.8, healthyComfortable: 1.2, brisk: 1.6 },
+      cadence: { low: 90, moderate: 100, brisk: 130 },
+      knee: { icMax: 10, mstMax: 10, poMin: 30, poStrong: 40, swingMin: 50, swingStrong: 60, asym: 7 },
+      hip: { icMin: 15, icStrong: 20, poMin: 10, poStrong: 15, swingMin: 20, swingStrong: 25, asym: 8 },
+      ankle: { icAbsMax: 8, mstDorsiMin: 3, poPlantarMin: -5, poPlantarStrong: -10, swingAbsMax: 10, asym: 6 },
+      plausibility: { speedMin: 0.2, speedMax: 2.2, cadenceMin: 50, cadenceMax: 160, strideMin: 0.5, strideMax: 2.2, durationMin: 4, stepCountMin: 4 },
+    };
+    const MODE_CONFIG = {
+      gait: {
+        title: "Gait Analysis",
+        recordLabel: "Start Walking",
+        stopLabel: "Stop & Gait Report",
+        protocol: "Walk naturally in strict side view for 3-5 clean gait cycles after the static baseline.",
+        biofeedback: true,
+      },
+      jump: {
+        title: "Jump Test",
+        recordLabel: "Start Jump Trial",
+        stopLabel: "Stop & Jump Report",
+        protocol: "Begin in quiet standing, perform one countermovement jump in strict side view, and land back in the same capture zone.",
+        biofeedback: false,
+      },
+      tug: {
+        title: "Timed Up and Go",
+        recordLabel: "Start TUG Trial",
+        stopLabel: "Stop & TUG Report",
+        protocol: "Start seated and still, stand up, walk forward, turn, return, and sit down again in side view.",
+        biofeedback: false,
+      },
+    };
+    const state = {
+      mode: 'gait',
+      calibrated: false,
+      recording: false,
+      validating: false,
+      calibrating: false,
+      scale: 1.0,
+      frames: [],
+      validationBuffer: [],
+      calibrationBuffer: [],
+      calibrationTargetFrames: 75,
+      staticBaseline: { rA: 0, lA: 0, facingSign: 1, heightPx: null },
+      lastValidation: { stabilityStd: null, boneCv: null, floorStd: null },
+    };
     const audioState = { ctx: null, lastTrigger: 0, cooldown: 1000, metroNext: 0 }; 
 
     const els = {
@@ -234,66 +311,402 @@
       btnCam: document.getElementById('btnCamera'), btnCal: document.getElementById('btnCalibrate'), btnVal: document.getElementById('btnValidate'),
       btnRec: document.getElementById('btnRecord'), btnStop: document.getElementById('btnStop'), btnReset: document.getElementById('btnReset'), btnExp: document.getElementById('btnExport'),
       lblScale: document.getElementById('lblScale'), calBar: document.getElementById('calibBar'), calProg: document.getElementById('calibProgress'),
-      modalReport: document.getElementById('reportModal'), modalVal: document.getElementById('valModal'), valResults: document.getElementById('valResults'), reportContent: document.getElementById('reportContent'),
-      dispRK: document.getElementById('dispRK'), dispLK: document.getElementById('dispLK'), dispRH: document.getElementById('dispRH'), dispLH: document.getElementById('dispLH'),
+      modalReport: document.getElementById('reportModal'), modalVal: document.getElementById('valModal'), valResults: document.getElementById('valResults'), reportContent: document.getElementById('reportContent'), reportTitle: document.getElementById('reportTitle'),
+      dispRK: document.getElementById('dispRK'), dispLK: document.getElementById('dispLK'), dispRH: document.getElementById('dispRH'), dispLH: document.getElementById('dispLH'), dispRA: document.getElementById('dispRA'), dispLA: document.getElementById('dispLA'),
       btnPrivacy: document.getElementById('btnPrivacy'), privacyContent: document.getElementById('privacyContent'),
       btnSpecs: document.getElementById('btnSpecs'), specsContent: document.getElementById('specsContent'),
       btnCamPrep: document.getElementById('btnCamPrep'), camPrepContent: document.getElementById('camPrepContent'),
-      chkAudio: document.getElementById('chkAudio'), bioThresh: document.getElementById('bioThresh'), bioMode: document.getElementById('bioMode'), lblBioTarget: document.getElementById('lblBioTarget')
+      chkAudio: document.getElementById('chkAudio'), bioThresh: document.getElementById('bioThresh'), bioMode: document.getElementById('bioMode'), lblBioTarget: document.getElementById('lblBioTarget'),
+      modeSelect: document.getElementById('modeSelect'), modeProtocol: document.getElementById('modeProtocol'), bioSection: document.getElementById('bioSection'),
+      livePanelTitle: document.getElementById('livePanelTitle')
     };
 
     let scene, camera, renderer, controls, poseLandmarker;
     const joints = [], bones = [];
 
-    // --- AI SERVER LOGIC ---
-    window.askOllama = async function(speed, cadence, kneeExt) {
-      const box = document.getElementById('aiBox');
-      const btn = document.getElementById('btnAskAI');
-      
-      box.style.display = 'block';
-      box.innerHTML = `<span class="ai-loading">🤖 Thinking... Contacting BioGait Cloud Brain...</span>`;
-      btn.disabled = true;
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>"']/g, ch => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+      }[ch]));
+    }
 
-      const prompt = `
-        You are an expert biomechanist/physiotherapist. 
-        Analyze the following gait data for a patient:
-        - Walking Speed: ${speed} m/s (Normal Reference: 1.2 - 1.4 m/s)
-        - Cadence: ${cadence} steps/min (Normal Reference: 100 - 115 spm)
-        - Knee Extension at Stance: ${kneeExt} degrees (Target: < 5 degrees)
+    function sortFindings(findings) {
+      const rank = { high: 0, medium: 1, low: 2 };
+      return findings.sort((a, b) => rank[a.severity] - rank[b.severity]);
+    }
 
-        Instructions:
-        1. Identify the primary gait deviation based on these numbers.
-        2. Suggest 2 specific corrective exercises.
-        3. Keep the response professional, concise, and under 80 words.
-      `;
+    function pushFinding(findings, severity, title, detail) {
+      findings.push({ severity, title, detail });
+    }
 
-      try {
-        const response = await fetch(OLLAMA_URL, {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'ngrok-skip-browser-warning': 'true' // VITAL FOR NGROK FREE TIER
-          },
-          body: JSON.stringify({
-            model: AI_MODEL_NAME,
-            prompt: prompt,
-            stream: false
-          })
-        });
+    function addAdvice(adviceMap, key, title, detail) {
+      if (!adviceMap.has(key)) adviceMap.set(key, { title, detail });
+    }
 
-        if (!response.ok) throw new Error("Server Error");
-        const json = await response.json();
-        
-        box.innerHTML = `<strong>🧠 AI Analysis (${AI_MODEL_NAME}):</strong><br>${json.response}`;
-      } catch (err) {
-        console.error(err);
-        box.innerHTML = `
-          <strong style="color:var(--danger)">Connection Failed!</strong><br>
-          Could not connect to Cloud Server.<br>
-          <small>Error: ${err.message}</small>
-        `;
+    function buildList(items, formatter) {
+      if (!items.length) return `<p style="color:#94a3b8;">No major flags were triggered by the current rule set.</p>`;
+      return `<ul class="insight-list">${items.map(formatter).join("")}</ul>`;
+    }
+
+    function avgNumeric(arr, key, frames) {
+      if (!arr.length) return null;
+      return arr.reduce((sum, idx) => sum + frames[idx].ang[key], 0) / arr.length;
+    }
+
+    function medianValue(values) {
+      if (!values.length) return null;
+      const sorted = [...values].sort((a, b) => a - b);
+      const mid = Math.floor(sorted.length / 2);
+      return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+    }
+
+    function signedAngle2D(v1, v2) {
+      const m1 = Math.hypot(v1.x, v1.y);
+      const m2 = Math.hypot(v2.x, v2.y);
+      if (!m1 || !m2) return 0;
+      const dot = v1.x * v2.x + v1.y * v2.y;
+      const cross = v1.x * v2.y - v1.y * v2.x;
+      return Math.atan2(cross, dot) * 180 / Math.PI;
+    }
+
+    function normalizeSignedAngle(angle) {
+      let value = angle;
+      while (value > 180) value -= 360;
+      while (value < -180) value += 360;
+      return value;
+    }
+
+    function footAxisX(lm, side) {
+      const heel = side === 'r' ? lm[30] : lm[29];
+      const toe = side === 'r' ? lm[32] : lm[31];
+      return toe.x - heel.x;
+    }
+
+    function getRawAnkleAngle(lm, side) {
+      const knee = side === 'r' ? lm[26] : lm[25];
+      const ankle = side === 'r' ? lm[28] : lm[27];
+      const heel = side === 'r' ? lm[30] : lm[29];
+      const toe = side === 'r' ? lm[32] : lm[31];
+      const shank = { x: knee.x - ankle.x, y: knee.y - ankle.y };
+      const foot = { x: toe.x - heel.x, y: toe.y - heel.y };
+      return signedAngle2D(shank, foot);
+    }
+
+    function getSignedAnkleRelative(lm, side) {
+      const raw = getRawAnkleAngle(lm, side);
+      const base = side === 'r' ? state.staticBaseline.rA : state.staticBaseline.lA;
+      return normalizeSignedAngle((raw - base) * -state.staticBaseline.facingSign);
+    }
+
+    function getCalibrationSample(lm) {
+      const avgAnkleY = (lm[27].y + lm[28].y) / 2;
+      const facingSignal = footAxisX(lm, 'r') + footAxisX(lm, 'l');
+      return {
+        heightPx: Math.abs(lm[0].y - avgAnkleY),
+        rA: getRawAnkleAngle(lm, 'r'),
+        lA: getRawAnkleAngle(lm, 'l'),
+        facingSign: facingSignal === 0 ? 1 : Math.sign(facingSignal),
+      };
+    }
+
+    function ankleVisualState(angle) {
+      const abs = Math.abs(angle);
+      if (abs <= 8) return 'val-good';
+      if (abs <= 15) return 'val-warn';
+      return 'val-bad';
+    }
+
+    function currentModeConfig() {
+      return MODE_CONFIG[state.mode] || MODE_CONFIG.gait;
+    }
+
+    function updateModeUI() {
+      const cfg = currentModeConfig();
+      els.modeProtocol.textContent = cfg.protocol;
+      els.btnRec.textContent = cfg.recordLabel;
+      els.btnStop.textContent = cfg.stopLabel;
+      els.reportTitle.textContent = `${cfg.title} Report`;
+      els.livePanelTitle.textContent = state.mode === 'gait' ? 'GAIT LIVE' : state.mode === 'jump' ? 'JUMP LIVE' : 'TUG LIVE';
+      els.bioSection.style.opacity = cfg.biofeedback ? '1' : '0.5';
+      els.bioSection.style.filter = cfg.biofeedback ? 'none' : 'grayscale(0.4)';
+      els.chkAudio.disabled = !cfg.biofeedback;
+      els.bioMode.disabled = !cfg.biofeedback;
+      els.bioThresh.disabled = !cfg.biofeedback;
+      if (!cfg.biofeedback) els.chkAudio.checked = false;
+      if (els.vid.srcObject && !state.recording && !state.calibrating) {
+        els.status.innerText = state.calibrated ? "CALIBRATED" : `${cfg.title.toUpperCase()} PREVIEW`;
+        els.status.style.background = state.calibrated ? "#10b981" : "#0ea5e9";
       }
-      btn.disabled = false;
+    }
+
+    function setMode(nextMode) {
+      state.mode = MODE_CONFIG[nextMode] ? nextMode : 'gait';
+      els.modeSelect.value = state.mode;
+      updateModeUI();
+    }
+
+    function detectExtrema(signal, mode = 'max', minDistance = 12, threshold = 0.08) {
+      const indices = [];
+      for (let i = 1; i < signal.length - 1; i++) {
+        const center = signal[i];
+        const isPeak = mode === 'max'
+          ? center > signal[i - 1] && center >= signal[i + 1] && center > threshold
+          : center < signal[i - 1] && center <= signal[i + 1] && center < -threshold;
+        if (!isPeak) continue;
+        if (!indices.length || i - indices[indices.length - 1] >= minDistance) indices.push(i);
+      }
+      return indices;
+    }
+
+    function detectGaitEvents(frames, scale) {
+      const footLead = frames.map(fr => {
+        const lm = fr.lm;
+        const r = (lm[28].x + lm[30].x + lm[32].x) / 3;
+        const l = (lm[27].x + lm[29].x + lm[31].x) / 3;
+        return (r - l) * scale;
+      });
+      const smooth = footLead.map((_, i) => {
+        let sum = 0, count = 0;
+        for (let j = Math.max(0, i - 3); j <= Math.min(footLead.length - 1, i + 3); j++) {
+          sum += footLead[j];
+          count++;
+        }
+        return sum / count;
+      });
+
+      const rightIC = detectExtrema(smooth, 'max');
+      const leftIC = detectExtrema(smooth, 'min');
+
+      const rightPO = leftIC.slice();
+      const leftPO = rightIC.slice();
+      const rightMSt = rightIC.map(idx => {
+        const nextOpp = leftIC.find(v => v > idx);
+        return Number.isInteger(nextOpp) ? Math.floor((idx + nextOpp) / 2) : null;
+      }).filter(Number.isInteger);
+      const leftMSt = leftIC.map(idx => {
+        const nextOpp = rightIC.find(v => v > idx);
+        return Number.isInteger(nextOpp) ? Math.floor((idx + nextOpp) / 2) : null;
+      }).filter(Number.isInteger);
+      const rightSW = rightPO.map(idx => {
+        const nextIC = rightIC.find(v => v > idx);
+        return Number.isInteger(nextIC) ? Math.floor((idx + nextIC) / 2) : null;
+      }).filter(Number.isInteger);
+      const leftSW = leftPO.map(idx => {
+        const nextIC = leftIC.find(v => v > idx);
+        return Number.isInteger(nextIC) ? Math.floor((idx + nextIC) / 2) : null;
+      }).filter(Number.isInteger);
+
+      const stepEvents = [...rightIC.map(i => ({ index: i, side: 'r' })), ...leftIC.map(i => ({ index: i, side: 'l' }))].sort((a, b) => a.index - b.index);
+      const stepLengths = stepEvents.map(ev => Math.abs(smooth[ev.index]));
+
+      return {
+        signal: smooth,
+        steps: stepEvents.length,
+        avgStepLength: stepLengths.length ? stepLengths.reduce((a, b) => a + b, 0) / stepLengths.length : 0,
+        events: {
+          r_ic: rightIC, l_ic: leftIC, r_po: rightPO, l_po: leftPO, r_mst: rightMSt, l_mst: leftMSt, r_sw: rightSW, l_sw: leftSW,
+        },
+      };
+    }
+
+    function evaluateConfidence(metrics, sanity) {
+      let score = 100;
+      if (metrics.steps < CLINICAL_THRESHOLDS.plausibility.stepCountMin) {
+        sanity.push(`Only ${metrics.steps} step events were detected. Phase-specific interpretation is less stable below ${CLINICAL_THRESHOLDS.plausibility.stepCountMin} steps.`);
+        score -= 25;
+      }
+      if (metrics.duration < CLINICAL_THRESHOLDS.plausibility.durationMin) {
+        sanity.push(`Recording duration was ${metrics.duration.toFixed(1)} s. Very short captures can distort cadence and phase averages.`);
+        score -= 20;
+      }
+      if (metrics.speed < CLINICAL_THRESHOLDS.plausibility.speedMin || metrics.speed > CLINICAL_THRESHOLDS.plausibility.speedMax) {
+        sanity.push(`Estimated speed (${metrics.speed.toFixed(2)} m/s) is outside the app's plausible adult screening range (${CLINICAL_THRESHOLDS.plausibility.speedMin}-${CLINICAL_THRESHOLDS.plausibility.speedMax} m/s). Check scaling and camera setup.`);
+        score -= 20;
+      }
+      if (metrics.cadence < CLINICAL_THRESHOLDS.plausibility.cadenceMin || metrics.cadence > CLINICAL_THRESHOLDS.plausibility.cadenceMax) {
+        sanity.push(`Estimated cadence (${metrics.cadence.toFixed(0)} spm) is outside the app's plausible adult screening range (${CLINICAL_THRESHOLDS.plausibility.cadenceMin}-${CLINICAL_THRESHOLDS.plausibility.cadenceMax} spm).`);
+        score -= 15;
+      }
+      if (metrics.stride < CLINICAL_THRESHOLDS.plausibility.strideMin || metrics.stride > CLINICAL_THRESHOLDS.plausibility.strideMax) {
+        sanity.push(`Estimated stride length (${metrics.stride.toFixed(2)} m) is outside the expected adult screening range (${CLINICAL_THRESHOLDS.plausibility.strideMin}-${CLINICAL_THRESHOLDS.plausibility.strideMax} m).`);
+        score -= 15;
+      }
+      if (metrics.validation && metrics.validation.stabilityStd !== null && metrics.validation.stabilityStd > 0.02) {
+        sanity.push("Static validation showed reduced stability before recording, so baseline calibration may be noisier than ideal.");
+        score -= 10;
+      }
+      if (metrics.validation && metrics.validation.boneCv !== null && metrics.validation.boneCv > 5) {
+        sanity.push("Bone-length variation during the validity check was elevated, which usually means camera angle, occlusion, or tracking instability.");
+        score -= 10;
+      }
+      if (!metrics.scale || !Number.isFinite(metrics.scale)) {
+        sanity.push("Height-based scaling is missing or invalid, so spatial metrics may be unreliable.");
+        score -= 30;
+      }
+      if (metrics.speed > CLINICAL_THRESHOLDS.speed.brisk || metrics.cadence > CLINICAL_THRESHOLDS.cadence.brisk) {
+        sanity.push("The walk appears faster than typical comfortable-speed reference data, so comfortable-gait norms should be interpreted cautiously.");
+        score -= 5;
+      }
+      const missingPhaseValues = Object.values(metrics.kinematics).flatMap(side => [side.hip, side.knee, side.ankle]).flatMap(joint => Object.values(joint)).filter(v => !Number.isFinite(v)).length;
+      if (missingPhaseValues > 2) {
+        sanity.push("Some phase averages were unavailable because the heuristic event detector did not identify enough clean events.");
+        score -= 15;
+      }
+      if (score >= 85) return { label: "High confidence", className: "chip-good" };
+      if (score >= 65) return { label: "Moderate confidence", className: "chip-warn" };
+      return { label: "Low confidence", className: "chip-bad" };
+    }
+
+    function interpretMetrics(metrics) {
+      const findings = [];
+      const advice = new Map();
+      const sanity = [];
+
+      const confidence = evaluateConfidence(metrics, sanity);
+
+      if (metrics.speed < CLINICAL_THRESHOLDS.speed.household) {
+        pushFinding(findings, "high", "Very slow gait speed", `Estimated speed is ${metrics.speed.toFixed(2)} m/s, below the < ${CLINICAL_THRESHOLDS.speed.household} m/s household-level cutoff used in community ambulation literature.`);
+        addAdvice(advice, "global-strength", "Global gait capacity", "Consider task-specific walking practice plus lower-limb strengthening work for quadriceps, gluteals and calf muscles. Escalate clinically if this pace is new, painful, or associated with instability.");
+      } else if (metrics.speed < CLINICAL_THRESHOLDS.speed.community) {
+        pushFinding(findings, "high", "Limited community walking speed", `Estimated speed is ${metrics.speed.toFixed(2)} m/s, within the ${CLINICAL_THRESHOLDS.speed.household}-${CLINICAL_THRESHOLDS.speed.community} m/s limited-community range.`);
+        addAdvice(advice, "global-strength", "Walking economy", "Focus on progressive walking tolerance, sit-to-stand style strengthening, and calf/hip power work if tolerated.");
+      } else if (metrics.speed < CLINICAL_THRESHOLDS.speed.healthyComfortable) {
+        pushFinding(findings, "medium", "Speed below healthy comfortable norms", `Estimated speed is ${metrics.speed.toFixed(2)} m/s, above the community threshold but below typical healthy comfortable walking values around ${CLINICAL_THRESHOLDS.speed.healthyComfortable}+ m/s.`);
+        addAdvice(advice, "tempo", "Step length and tempo", "If this represents effortful walking, review stride length, push-off, and confidence/conditioning rather than trying to raise cadence alone.");
+      }
+
+      if (metrics.cadence < CLINICAL_THRESHOLDS.cadence.low) {
+        pushFinding(findings, "medium", "Low step rate", `Cadence is ${metrics.cadence.toFixed(0)} spm, below the ${CLINICAL_THRESHOLDS.cadence.low} spm low-tempo threshold used here.`);
+        addAdvice(advice, "tempo", "Rhythm practice", "Use rhythmic walking drills or metronome practice carefully, but only if the slower cadence is not due to pain, fear, or inadequate step clearance.");
+      } else if (metrics.cadence < CLINICAL_THRESHOLDS.cadence.moderate && metrics.speed < CLINICAL_THRESHOLDS.speed.healthyComfortable) {
+        pushFinding(findings, "low", "Cadence mildly below reference tempo", `Cadence is ${metrics.cadence.toFixed(0)} spm. It is below the ${CLINICAL_THRESHOLDS.cadence.moderate} spm heuristic often associated with normal-to-brisk adult stepping.`);
+      }
+
+      const sides = [
+        { key: "r", label: "Right", knee: metrics.kinematics.r.knee, hip: metrics.kinematics.r.hip, ankle: metrics.kinematics.r.ankle },
+        { key: "l", label: "Left", knee: metrics.kinematics.l.knee, hip: metrics.kinematics.l.hip, ankle: metrics.kinematics.l.ankle },
+      ];
+
+      sides.forEach(side => {
+        if (Number.isFinite(side.knee.ic) && side.knee.ic > CLINICAL_THRESHOLDS.knee.icMax) {
+          const sev = side.knee.ic > 15 ? "high" : "medium";
+          pushFinding(findings, sev, `${side.label} knee remains flexed at initial contact`, `${side.label} knee initial-contact angle is ${side.knee.ic.toFixed(1)}°, above the preferred ~0-10° range used for near-full extension at contact.`);
+          addAdvice(advice, `knee-ext-${side.key}`, `${side.label} knee extension`, "Review quadriceps strength and gentle extension mobility. Persistent flexed-knee contact can also reflect pain avoidance or upstream/downstream compensation.");
+        }
+        if (Number.isFinite(side.knee.mst) && side.knee.mst > CLINICAL_THRESHOLDS.knee.mstMax) {
+          const sev = side.knee.mst > 15 ? "high" : "medium";
+          pushFinding(findings, sev, `${side.label} knee stays flexed through stance`, `${side.label} mid-stance knee angle is ${side.knee.mst.toFixed(1)}°, suggesting incomplete extension during support.`);
+          addAdvice(advice, `stance-control-${side.key}`, `${side.label} stance control`, "Consider stance-control work: quadriceps strength, gluteal support, and step-to-step control drills. If pain or contracture is present, clinical assessment matters more than exercise volume.");
+        }
+        if (Number.isFinite(side.knee.po) && side.knee.po < CLINICAL_THRESHOLDS.knee.poMin) {
+          pushFinding(findings, "medium", `${side.label} knee flexion initiation may be reduced`, `${side.label} pre-swing/push-off knee angle is ${side.knee.po.toFixed(1)}°, below the ${CLINICAL_THRESHOLDS.knee.poMin}° screening threshold used for swing initiation.`);
+          addAdvice(advice, `pre-swing-${side.key}`, `${side.label} pre-swing mechanics`, "Look at toe-off timing, ankle push-off, and early swing mechanics before assuming isolated knee weakness.");
+        }
+        if (Number.isFinite(side.knee.sw) && side.knee.sw < CLINICAL_THRESHOLDS.knee.swingMin) {
+          const sev = side.knee.sw < 40 ? "high" : "medium";
+          pushFinding(findings, sev, `${side.label} swing-phase knee flexion is reduced`, `${side.label} swing knee angle is ${side.knee.sw.toFixed(1)}°, below the ${CLINICAL_THRESHOLDS.knee.swingMin}° screening threshold and below the ~${CLINICAL_THRESHOLDS.knee.swingStrong}-${CLINICAL_THRESHOLDS.knee.swingStrong + 10}° peak flexion often described for normal swing.`);
+          addAdvice(advice, `swing-clearance-${side.key}`, `${side.label} toe-clearance strategy`, "Consider task-specific swing drills, hip-flexor/hamstring activation, and obstacle-step practice if safe. Persistent toe-clearance issues merit clinician review.");
+        }
+
+        if (Number.isFinite(side.hip.ic) && side.hip.ic < CLINICAL_THRESHOLDS.hip.icMin) {
+          pushFinding(findings, "medium", `${side.label} hip flexion at contact looks low`, `${side.label} hip initial-contact angle is ${side.hip.ic.toFixed(1)}°, below the broad ${CLINICAL_THRESHOLDS.hip.icMin}-${CLINICAL_THRESHOLDS.hip.icStrong}+° reference band used here for initial-contact flexion.`);
+          addAdvice(advice, `hip-flex-${side.key}`, `${side.label} limb advancement`, "Focus on limb-advancement mechanics: hip flexor strength, marching/step-up patterns, and timing of swing rather than isolated stretching alone.");
+        }
+        if (Number.isFinite(side.hip.po) && side.hip.po < CLINICAL_THRESHOLDS.hip.poMin) {
+          const sev = side.hip.po < 5 ? "high" : "medium";
+          pushFinding(findings, sev, `${side.label} trailing-limb hip extension looks limited`, `${side.label} late-stance hip angle is ${side.hip.po.toFixed(1)}°, below the ${CLINICAL_THRESHOLDS.hip.poMin}-${CLINICAL_THRESHOLDS.hip.poStrong}+° reference band used here for late stance extension.`);
+          addAdvice(advice, `hip-ext-${side.key}`, `${side.label} hip extension strategy`, "Consider hip-flexor mobility and gluteal strengthening, especially if the stride is short or push-off looks truncated.");
+        }
+        if (Number.isFinite(side.hip.sw) && side.hip.sw < CLINICAL_THRESHOLDS.hip.swingMin) {
+          pushFinding(findings, "medium", `${side.label} swing-phase hip flexion looks reduced`, `${side.label} swing hip angle is ${side.hip.sw.toFixed(1)}°, below the ${CLINICAL_THRESHOLDS.hip.swingMin}-${CLINICAL_THRESHOLDS.hip.swingStrong}+° swing reference band used here.`);
+          addAdvice(advice, `hip-advance-${side.key}`, `${side.label} swing advancement`, "Review hip-flexor drive, step length confidence, and whether the person is avoiding faster limb advancement because of balance or pain.");
+        }
+
+        if (Number.isFinite(side.ankle.ic) && Math.abs(side.ankle.ic) > CLINICAL_THRESHOLDS.ankle.icAbsMax) {
+          pushFinding(findings, "low", `${side.label} ankle is not near static neutral at contact`, `${side.label} ankle at initial contact is ${side.ankle.ic.toFixed(1)}° relative to the static baseline, where positive values indicate dorsiflexion and negative values indicate plantarflexion. Larger deviations can reflect foot-set posture or event-timing uncertainty.`);
+        }
+        if (Number.isFinite(side.ankle.mst) && side.ankle.mst < CLINICAL_THRESHOLDS.ankle.mstDorsiMin) {
+          pushFinding(findings, "medium", `${side.label} dorsiflexion in stance looks limited`, `${side.label} ankle in mid-stance is ${side.ankle.mst.toFixed(1)}° relative to static. Positive values represent dorsiflexion; values below about ${CLINICAL_THRESHOLDS.ankle.mstDorsiMin}° suggest limited tibial progression.`);
+          addAdvice(advice, `ankle-df-${side.key}`, `${side.label} dorsiflexion during stance`, "Review calf flexibility, ankle mobility, and whether the person shortens stance to avoid forward tibial progression.");
+        }
+        if (Number.isFinite(side.ankle.po) && side.ankle.po > CLINICAL_THRESHOLDS.ankle.poPlantarMin) {
+          pushFinding(findings, "medium", `${side.label} push-off plantarflexion looks reduced`, `${side.label} ankle at push-off is ${side.ankle.po.toFixed(1)}° relative to static. Negative values represent plantarflexion, so a value less plantarflexed than ${CLINICAL_THRESHOLDS.ankle.poPlantarMin}° suggests reduced propulsion.`);
+          addAdvice(advice, `ankle-pf-${side.key}`, `${side.label} push-off`, "Consider calf strength and late-stance push-off mechanics, especially if stride is short or gait speed is reduced.");
+        }
+        if (Number.isFinite(side.ankle.sw) && Math.abs(side.ankle.sw) > CLINICAL_THRESHOLDS.ankle.swingAbsMax) {
+          pushFinding(findings, "low", `${side.label} ankle stays away from neutral in swing`, `${side.label} ankle in swing is ${side.ankle.sw.toFixed(1)}° relative to static. Positive values represent dorsiflexion and negative values plantarflexion; persistent plantarflexed swing posture can reduce toe clearance.`);
+        }
+      });
+
+      const kneeStanceAsym = Number.isFinite(metrics.kinematics.r.knee.mst) && Number.isFinite(metrics.kinematics.l.knee.mst) ? Math.abs(metrics.kinematics.r.knee.mst - metrics.kinematics.l.knee.mst) : null;
+      const kneeSwingAsym = Number.isFinite(metrics.kinematics.r.knee.sw) && Number.isFinite(metrics.kinematics.l.knee.sw) ? Math.abs(metrics.kinematics.r.knee.sw - metrics.kinematics.l.knee.sw) : null;
+      const hipPushOffAsym = Number.isFinite(metrics.kinematics.r.hip.po) && Number.isFinite(metrics.kinematics.l.hip.po) ? Math.abs(metrics.kinematics.r.hip.po - metrics.kinematics.l.hip.po) : null;
+
+      if (Number.isFinite(kneeStanceAsym) && kneeStanceAsym > CLINICAL_THRESHOLDS.knee.asym) {
+        pushFinding(findings, "medium", "Notable stance-phase knee asymmetry", `Mid-stance knee difference between sides is ${kneeStanceAsym.toFixed(1)}°, above the ${CLINICAL_THRESHOLDS.knee.asym}° asymmetry flag used here.`);
+        addAdvice(advice, "asymmetry", "Left-right asymmetry", "Compare side-to-side loading, pain, confidence, and single-leg control before treating this as a pure strength deficit.");
+      }
+      if (Number.isFinite(kneeSwingAsym) && kneeSwingAsym > CLINICAL_THRESHOLDS.knee.asym) {
+        pushFinding(findings, "medium", "Notable swing-phase knee asymmetry", `Swing-phase knee difference between sides is ${kneeSwingAsym.toFixed(1)}°, above the ${CLINICAL_THRESHOLDS.knee.asym}° asymmetry flag used here.`);
+        addAdvice(advice, "asymmetry", "Left-right asymmetry", "Compare toe-clearance strategy, confidence, and step timing between limbs.");
+      }
+      if (Number.isFinite(hipPushOffAsym) && hipPushOffAsym > CLINICAL_THRESHOLDS.hip.asym) {
+        pushFinding(findings, "low", "Late-stance hip asymmetry", `Late-stance hip angle difference between sides is ${hipPushOffAsym.toFixed(1)}°, above the ${CLINICAL_THRESHOLDS.hip.asym}° hip asymmetry flag used here.`);
+        addAdvice(advice, "asymmetry", "Left-right asymmetry", "Check whether one side consistently trails less, which can shorten stride and reduce propulsion.");
+      }
+
+      const orderedFindings = sortFindings(findings);
+      const summary = orderedFindings.length
+        ? orderedFindings.slice(0, 2).map(item => item.title.toLowerCase()).join(" and ")
+        : "No major red flags were triggered by the current screening rules, although camera-based gait screening cannot replace formal gait lab analysis.";
+
+      return {
+        summary,
+        confidence,
+        findings: orderedFindings,
+        advice: Array.from(advice.values()),
+        sanity,
+      };
+    }
+
+    function renderInterpretation(metrics) {
+      const result = interpretMetrics(metrics);
+      const severityChip = result.findings.some(f => f.severity === "high")
+        ? { label: "Priority findings present", className: "chip-bad" }
+        : result.findings.some(f => f.severity === "medium")
+          ? { label: "Manageable deviations", className: "chip-warn" }
+          : { label: "No major red flags", className: "chip-good" };
+
+      return `
+        <div class="insight-container">
+          <h3 style="color:var(--accent); margin-bottom:12px;">Automated Clinical Interpretation</h3>
+          <div class="insight-box">
+            <div class="chip-row">
+              <span class="chip ${result.confidence.className}">${result.confidence.label}</span>
+              <span class="chip ${severityChip.className}">${severityChip.label}</span>
+              <span class="chip chip-good">Rule-based</span>
+            </div>
+            <p><strong>Summary:</strong> ${escapeHtml(result.summary)}.</p>
+            <p><strong>Context:</strong> Speed ${metrics.speed.toFixed(2)} m/s, cadence ${metrics.cadence.toFixed(0)} spm, stride ${metrics.stride.toFixed(2)} m, duration ${metrics.duration.toFixed(1)} s, detected steps ${metrics.steps}.</p>
+            <div class="section-title" style="margin-top:14px;">Key Findings</div>
+            ${buildList(result.findings, item => `<li><strong>${escapeHtml(item.title)}:</strong> ${escapeHtml(item.detail)}</li>`)}
+            <div class="section-title" style="margin-top:16px;">Suggested Focus Areas</div>
+            ${buildList(result.advice, item => `<li><strong>${escapeHtml(item.title)}:</strong> ${escapeHtml(item.detail)}</li>`)}
+            <div class="section-title" style="margin-top:16px;">Sanity Checks</div>
+            ${buildList(result.sanity, item => `<li>${escapeHtml(item)}</li>`)}
+            <p class="source-note">
+              Threshold basis: gait-speed cutoffs and healthy adult norms from SRALab 10MWT references; cadence heuristics from CADENCE-Adults studies; broad hip/knee phase references from normal gait clinical reviews based on Perry/Burnfield; webcam kinematic uncertainty kept conservative using reported MDC ranges.
+            </p>
+            <p class="source-note">
+              This is a screening-style explanation, not a diagnosis. Phase labels are inferred heuristically from video landmarks and are less reliable in very short, slow, fast, or highly asymmetric recordings.
+            </p>
+          </div>
+        </div>
+      `;
     }
 
     // --- AUDIO & LOGIC ---
@@ -356,25 +769,30 @@
       .forEach(([btn, content]) => btn.addEventListener('click', () => content.style.display = content.style.display === 'block' ? 'none' : 'block'));
     }
 
+    els.modeSelect.addEventListener('change', () => {
+      if (state.recording || state.validating || state.calibrating) return;
+      setMode(els.modeSelect.value);
+    });
+
     els.btnCam.addEventListener('click', async () => {
       try {
         const s = await navigator.mediaDevices.getUserMedia({video: {width: 1280, height: 720}});
         els.vid.srcObject = s;
-        els.vid.onloadeddata = () => { els.btnCam.disabled = true; els.btnVal.disabled = false; els.btnCal.disabled = false; els.status.innerText = "PREVIEW MODE"; els.status.style.background = "#0ea5e9"; predictLoop(); };
+        els.vid.onloadeddata = () => { els.btnCam.disabled = true; els.btnVal.disabled = false; els.btnCal.disabled = false; els.status.innerText = `${currentModeConfig().title.toUpperCase()} PREVIEW`; els.status.style.background = "#0ea5e9"; predictLoop(); };
       } catch (e) { alert("Camera Denied"); }
     });
 
-    async function runCountdown(cb) {
+    async function runCountdown(label, cb) {
       els.btnVal.disabled = true; els.btnCal.disabled = true; els.modalVal.style.display = 'flex';
       for(let i=3; i>0; i--) {
-        els.valResults.innerHTML = `<h1 style="text-align:center; font-size:4rem; color:#f59e0b; margin:20px 0;">${i}</h1><p style="text-align:center; color:#94a3b8;">Get Ready (T-Pose)</p>`;
+        els.valResults.innerHTML = `<h1 style="text-align:center; font-size:4rem; color:#f59e0b; margin:20px 0;">${i}</h1><p style="text-align:center; color:#94a3b8;">${label}</p>`;
         await new Promise(r => setTimeout(r, 1000));
       }
       cb();
     }
 
     els.btnVal.addEventListener('click', () => {
-      runCountdown(() => {
+      runCountdown(`Static check for ${currentModeConfig().title}: stand upright in side view, look forward, arms relaxed, feet flat, and remain still`, () => {
         state.validationBuffer = []; state.validating = true;
         els.valResults.innerHTML = '<p style="color:#38bdf8; text-align:center;">Capturing 5s Stability Check...</p>';
         setTimeout(() => { state.validating = false; runValidationChecks(); els.btnVal.disabled = false; els.btnCal.disabled = false; }, 5000);
@@ -382,9 +800,8 @@
     });
 
     els.btnCal.addEventListener('click', () => {
-      runCountdown(() => {
+      runCountdown(`Static calibration for ${currentModeConfig().title}: upright trunk, eyes forward, arms by the sides, feet flat, no movement`, () => {
         els.modalVal.style.display = 'none'; state.calibrationBuffer = []; els.calProg.style.display = 'block'; els.calBar.style.width = '0%'; els.status.innerText = "CAPTURING..."; els.status.style.background = "#ef4444";
-        let p = 0; const t = setInterval(() => { p += 5; els.calBar.style.width = p+"%"; if(p>=100){ clearInterval(t); finishCalibration(); } }, 150);
         state.calibrating = true;
       });
     });
@@ -400,27 +817,56 @@
       const cvF = (stdF/meanF)*100;
       const lowestYs = data.map(d => Math.max(d[29].y, d[30].y));
       const stdLow = Math.sqrt(lowestYs.map(x => Math.pow(x-(lowestYs.reduce((a,b)=>a+b,0)/lowestYs.length),2)).reduce((a,b)=>a+b)/lowestYs.length);
+      state.lastValidation = { stabilityStd: stdZ, boneCv: cvF, floorStd: stdLow };
       els.valResults.innerHTML = `
         <h3 style="color:#fff; border-bottom:1px solid #334155; padding-bottom:5px;">Ground Truth Report</h3>
         <div class="valid-row"><span>Stability</span><span class="${stdZ<0.02?'pass':'fail'}">${stdZ<0.02?'PASS':'FAIL'}</span></div>
         <div class="valid-row"><span>Bone Const.</span><span class="${cvF<5?'pass':'fail'}">${cvF<5?'PASS':'FAIL'}</span></div>
         <div class="valid-row"><span>Floor Check</span><span class="${stdLow<0.02?'pass':'warn'}">${stdLow<0.02?'PASS':'WARN'}</span></div>
+        <p style="margin-top:12px; color:#94a3b8; font-size:0.78rem;">Protocol: full body visible, strict sagittal view, upright static stance with eyes forward and feet flat, stable lighting, and mode-specific task execution after the baseline.</p>
       `;
     }
 
     function finishCalibration() {
       state.calibrating = false; els.calProg.style.display = 'none';
       if(state.calibrationBuffer.length < 10) { alert("Fail"); els.btnCal.disabled = false; return; }
-      const vals = state.calibrationBuffer.sort((a,b)=>a-b);
-      state.scale = parseFloat(document.getElementById('inputHeight').value) / vals[Math.floor(vals.length/2)];
-      els.lblScale.value = `Scale: ${state.scale.toFixed(3)}`;
+      const heightPx = medianValue(state.calibrationBuffer.map(s => s.heightPx));
+      const rA = medianValue(state.calibrationBuffer.map(s => s.rA));
+      const lA = medianValue(state.calibrationBuffer.map(s => s.lA));
+      const facing = medianValue(state.calibrationBuffer.map(s => s.facingSign)) || 1;
+      state.scale = parseFloat(document.getElementById('inputHeight').value) / heightPx;
+      state.calibrated = true;
+      state.staticBaseline = { rA, lA, facingSign: facing >= 0 ? 1 : -1, heightPx };
+      els.lblScale.value = `Scale: ${state.scale.toFixed(3)} | Static set`;
       els.btnCal.disabled = true; els.btnRec.disabled = false; els.btnVal.disabled = false;
       els.status.innerText = "CALIBRATED"; els.status.style.background = "#10b981";
     }
 
     els.btnRec.addEventListener('click', () => { state.frames = []; state.recording = true; els.btnRec.disabled = true; els.btnStop.disabled = false; els.btnReset.disabled = true; els.status.innerText = "RECORDING..."; els.status.style.background = "#ef4444"; });
     els.btnStop.addEventListener('click', () => { state.recording = false; els.btnStop.disabled = true; els.btnReset.disabled = false; els.btnExp.disabled = false; els.status.innerText = "ANALYZING..."; els.status.style.background = "#8b5cf6"; performAnalysis(); });
-    els.btnReset.addEventListener('click', () => { state.frames = []; els.btnRec.disabled = false; els.btnStop.disabled = true; els.btnReset.disabled = true; els.btnExp.disabled = true; els.modalReport.style.display = 'none'; els.status.innerText = "READY"; els.status.style.background = "#10b981"; });
+    els.btnReset.addEventListener('click', () => {
+      const hasCamera = !!els.vid.srcObject;
+      state.frames = [];
+      state.calibrated = false;
+      state.calibrating = false;
+      state.recording = false;
+      state.scale = 1.0;
+      state.calibrationBuffer = [];
+      state.staticBaseline = { rA: 0, lA: 0, facingSign: 1, heightPx: null };
+      els.lblScale.value = "Uncalibrated";
+      els.calProg.style.display = 'none';
+      els.dispRA.className = 'val';
+      els.dispLA.className = 'val';
+      els.btnRec.disabled = true;
+      els.btnStop.disabled = true;
+      els.btnReset.disabled = true;
+      els.btnExp.disabled = true;
+      els.btnCal.disabled = !hasCamera;
+      els.btnVal.disabled = !hasCamera;
+      els.modalReport.style.display = 'none';
+      els.status.innerText = hasCamera ? `${currentModeConfig().title.toUpperCase()} PREVIEW` : "READY";
+      els.status.style.background = hasCamera ? "#0ea5e9" : "#10b981";
+    });
 
     let lastT = -1;
     function predictLoop() {
@@ -431,11 +877,18 @@
           const lm = res.worldLandmarks[0];
           drawSkeleton(lm);
           if (state.validating) state.validationBuffer.push(lm);
-          if (state.calibrating) state.calibrationBuffer.push(Math.abs(lm[0].y - (lm[27].y+lm[28].y)/2));
+          if (state.calibrating) {
+            state.calibrationBuffer.push(getCalibrationSample(lm));
+            const progress = Math.min(100, (state.calibrationBuffer.length / state.calibrationTargetFrames) * 100);
+            els.calBar.style.width = `${progress}%`;
+            if (state.calibrationBuffer.length >= state.calibrationTargetFrames) finishCalibration();
+          }
           if (state.recording) {
             const ang = computeAngles(lm);
             state.frames.push({ t: els.vid.currentTime, lm: JSON.parse(JSON.stringify(lm)), ang });
-            els.dispRK.innerText = ang.rK.toFixed(0) + "°"; els.dispLK.innerText = ang.lK.toFixed(0) + "°"; els.dispRH.innerText = ang.rH.toFixed(0) + "°"; els.dispLH.innerText = ang.lH.toFixed(0) + "°";
+            els.dispRK.innerText = ang.rK.toFixed(0) + "°"; els.dispLK.innerText = ang.lK.toFixed(0) + "°"; els.dispRH.innerText = ang.rH.toFixed(0) + "°"; els.dispLH.innerText = ang.lH.toFixed(0) + "°"; els.dispRA.innerText = ang.rA.toFixed(0) + "°"; els.dispLA.innerText = ang.lA.toFixed(0) + "°";
+            els.dispRA.className = `val ${ankleVisualState(ang.rA)}`;
+            els.dispLA.className = `val ${ankleVisualState(ang.lA)}`;
             checkBiofeedback(ang);
           } else if (els.chkAudio.checked && els.bioMode.value === 'metro') {
              const th = parseFloat(els.bioThresh.value) || 100; const now = performance.now(); const interval = 60000 / th;
@@ -464,51 +917,218 @@
         const dot = v1.x*v2.x+v1.y*v2.y+v1.z*v2.z; const m = Math.sqrt(v1.x**2+v1.y**2+v1.z**2) * Math.sqrt(v2.x**2+v2.y**2+v2.z**2);
         return 180 - (Math.acos(dot/m)*180/Math.PI);
       };
-      return { rK: getA(lm[24],lm[26],lm[28]), lK: getA(lm[23],lm[25],lm[27]), rH: getA(lm[12],lm[24],lm[26]), lH: getA(lm[11],lm[23],lm[25]), rA: getA(lm[26],lm[28],lm[32]), lA: getA(lm[25],lm[27],lm[31]) };
+      return {
+        rK: getA(lm[24],lm[26],lm[28]),
+        lK: getA(lm[23],lm[25],lm[27]),
+        rH: getA(lm[12],lm[24],lm[26]),
+        lH: getA(lm[11],lm[23],lm[25]),
+        rA: getSignedAnkleRelative(lm, 'r'),
+        lA: getSignedAnkleRelative(lm, 'l'),
+      };
     }
 
-    function performAnalysis() {
-      const fr = state.frames, s = state.scale;
-      if (fr.length < 30) { alert("Recording too short"); return; }
-      const sep = fr.map(f => Math.abs(f.lm[27].x - f.lm[28].x)); const smoothSep = []; for(let i=0; i<sep.length; i++) { let sum=0, cnt=0; for(let j=Math.max(0,i-3); j<=Math.min(sep.length-1,i+3); j++){ sum+=sep[j]; cnt++; } smoothSep.push(sum/cnt); }
-      const peaks = []; for(let i=2; i<smoothSep.length-2; i++) { if (smoothSep[i]>smoothSep[i-1] && smoothSep[i]>smoothSep[i+1] && smoothSep[i]>0.15) { if(!peaks.length || (i-peaks[peaks.length-1])>15) peaks.push(i); } }
-      const steps = peaks.length; const dur = fr[fr.length-1].t - fr[0].t; const cad = steps > 0 ? (steps / (dur/60)) : 0; const stride = steps > 0 ? (peaks.map(i => smoothSep[i]*s).reduce((a,b)=>a+b,0)/steps * 2) : 0; const spd = (steps * (stride/2)) / dur;
-      const ev = { r_ic:[], r_mst:[], r_po:[], r_sw:[], l_ic:[], l_mst:[], l_po:[], l_sw:[] };
-      peaks.forEach(i => { if (fr[i].ang.lK < fr[i].ang.rK) { ev.l_ic.push(i); ev.r_po.push(i); } else { ev.r_ic.push(i); ev.l_po.push(i); } });
-      for(let k=0; k<peaks.length-1; k++) { const m = Math.floor((peaks[k]+peaks[k+1])/2); if (fr[peaks[k]].ang.rK > fr[peaks[k]].ang.lK) { ev.r_mst.push(m); ev.l_sw.push(m); } else { ev.l_mst.push(m); ev.r_sw.push(m); } }
-      const avg = (arr, k) => !arr.length ? "-" : (arr.reduce((a,x)=>a+fr[x].ang[k],0)/arr.length).toFixed(1);
+    function smoothSeries(values, radius = 3) {
+      return values.map((_, i) => {
+        let sum = 0, count = 0;
+        for (let j = Math.max(0, i - radius); j <= Math.min(values.length - 1, i + radius); j++) {
+          sum += values[j];
+          count++;
+        }
+        return count ? sum / count : values[i];
+      });
+    }
 
-      let h = `<div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;"><div><h3>Spatio-Temporal</h3><table class="report-table"><tr><td>Speed</td><td class="val">${spd?spd.toFixed(2):0} m/s</td></tr><tr><td>Cadence</td><td class="val">${cad.toFixed(0)} spm</td></tr><tr><td>Stride</td><td class="val">${stride.toFixed(2)} m</td></tr></table></div><div><h3>Cycle</h3><table class="report-table"><tr><td>Steps</td><td class="val">${steps}</td></tr><tr><td>Duration</td><td class="val">${dur.toFixed(1)} s</td></tr></table></div></div><h3 style="margin-top:20px;">Kinematics (Avg Degrees)</h3><table class="report-table"><thead><tr><th>Joint</th><th>IC</th><th>MSt</th><th>PO</th><th>Sw</th></tr></thead><tbody>`;
-      const rows = [ ['Right Hip', 'rH', 'r'], ['Left Hip', 'lH', 'l'], ['Right Knee', 'rK', 'r'], ['Left Knee', 'lK', 'l'], ['Right Ankle', 'rA', 'r'], ['Left Ankle', 'lA', 'l'] ];
-      rows.forEach(([name, key, side]) => { h += `<tr><td><strong>${name}</strong></td><td>${avg(ev[side+'_ic'], key)}</td><td>${avg(ev[side+'_mst'], key)}</td><td>${avg(ev[side+'_po'], key)}</td><td>${avg(ev[side+'_sw'], key)}</td></tr>`; });
-      h += `</tbody></table>
-      
-      <div class="ai-container">
-        <h3 style="color:var(--ai);">🤖 AI Assistant (Phi-3)</h3>
-        <p style="font-size:0.8rem; color:#94a3b8;">Click below to send this data to your local LLM for analysis.</p>
-        <button class="btn btn-ai" id="btnAskAI" onclick="window.askOllama('${spd?spd.toFixed(2):0}', '${cad.toFixed(0)}', '${avg(ev.r_mst, 'rK')}')">🧠 Ask Phi-3 for Advice</button>
-        <div class="ai-box" id="aiBox">Response will appear here...</div>
-      </div>
-      `;
+    function argMax(values, start = 0, end = values.length) {
+      let idx = start;
+      for (let i = start + 1; i < end; i++) if (values[i] > values[idx]) idx = i;
+      return idx;
+    }
 
+    function argMin(values, start = 0, end = values.length) {
+      let idx = start;
+      for (let i = start + 1; i < end; i++) if (values[i] < values[idx]) idx = i;
+      return idx;
+    }
+
+    function analyzeJump(fr, scale) {
+      const times = fr.map(f => f.t);
+      const hipHeights = smoothSeries(fr.map(f => -((f.lm[23].y + f.lm[24].y) / 2) * scale), 2);
+      const footHeights = smoothSeries(fr.map(f => -(([27, 28, 29, 30, 31, 32].reduce((sum, idx) => sum + f.lm[idx].y, 0) / 6) * scale), 2);
+      const baselineCount = Math.min(15, Math.max(8, Math.floor(fr.length * 0.2)));
+      const baseHip = medianValue(hipHeights.slice(0, baselineCount)) || hipHeights[0];
+      const baseFoot = medianValue(footHeights.slice(0, baselineCount)) || footHeights[0];
+      const takeoff = hipHeights.findIndex((_, i) => i >= baselineCount && (footHeights[i] - baseFoot) > 0.025);
+      const landing = takeoff >= 0 ? footHeights.findIndex((_, i) => i > takeoff && Math.abs(footHeights[i] - baseFoot) < 0.015) : -1;
+      const apex = takeoff >= 0 ? argMax(hipHeights, takeoff, landing > takeoff ? landing : hipHeights.length) : argMax(hipHeights);
+      const crouch = takeoff >= 0 ? argMin(hipHeights, 0, takeoff) : argMin(hipHeights);
+      const landingIdx = landing >= 0 ? landing : apex;
+      const landingKnee = landingIdx >= 0 ? ((fr[landingIdx].ang.rK + fr[landingIdx].ang.lK) / 2) : null;
+      const landingAsym = landingIdx >= 0 ? Math.abs(fr[landingIdx].ang.rK - fr[landingIdx].ang.lK) : null;
+      const flightTime = takeoff >= 0 && landing >= 0 ? Math.max(0, times[landing] - times[takeoff]) : 0;
+      const jumpHeightFlight = flightTime > 0 ? 9.81 * flightTime * flightTime / 8 : 0;
+      const jumpHeightHip = Math.max(0, hipHeights[apex] - baseHip);
+      const countermovementDepth = Math.max(0, baseHip - hipHeights[crouch]);
+      const methodGap = Math.abs(jumpHeightFlight - jumpHeightHip);
+
+      const findings = [];
+      const advice = [];
+      const sanity = [];
+      if (takeoff < 0 || landing < 0) {
+        findings.push("A clean airborne phase was not detected. Repeat the trial with one clear vertical jump fully visible in frame.");
+      } else {
+        if (countermovementDepth < 0.08) findings.push(`Countermovement depth was shallow (${countermovementDepth.toFixed(2)} m), which may limit jump preparation.`);
+        if (landingKnee !== null && landingKnee < 20) findings.push(`Landing knee flexion averaged ${landingKnee.toFixed(1)}°, suggesting a relatively stiff landing strategy.`);
+        if (landingAsym !== null && landingAsym > 10) findings.push(`Landing knee asymmetry reached ${landingAsym.toFixed(1)}°, indicating left-right landing imbalance.`);
+        if (flightTime > 0 && methodGap > 0.08) sanity.push(`Flight-time jump height and hip-displacement jump height differ by ${methodGap.toFixed(2)} m, so the airborne detection or landing posture may be noisy.`);
+      }
+      advice.push("For cleaner jump metrics, begin from quiet standing, perform one clear countermovement jump, and keep the whole body inside the same side-view capture zone.");
+      if (landingKnee !== null && landingKnee < 20) advice.push("Consider softer landing mechanics with more controlled knee and hip flexion if the task goal is landing absorption rather than maximum stiffness.");
+      if (landingAsym !== null && landingAsym > 10) advice.push("Repeat 2-3 trials and compare whether the same side remains stiffer or lands earlier, which can help identify a consistent asymmetry.");
+
+      return { times, takeoff, landing, apex, baseHip, baseFoot, flightTime, jumpHeightFlight, jumpHeightHip, countermovementDepth, landingKnee, landingAsym, findings, advice, sanity };
+    }
+
+    function renderJumpReport(fr, scale) {
+      const jump = analyzeJump(fr, scale);
+      const takeoffText = jump.takeoff >= 0 ? `${jump.times[jump.takeoff].toFixed(2)} s` : "—";
+      const landingText = jump.landing >= 0 ? `${jump.times[jump.landing].toFixed(2)} s` : "—";
+      const confidence = jump.takeoff >= 0 && jump.landing >= 0 ? "Moderate confidence" : "Low confidence";
+      const findings = jump.findings.length ? jump.findings : ["No major jump-quality flags were triggered by the current rule set."];
+      const sanity = jump.sanity.length ? jump.sanity : ["Jump mode uses markerless side-view heuristics. Metrics are best for repeat tracking under the same setup, not force-platform replacement."];
+      const advice = jump.advice;
+
+      let h = `<div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;"><div><h3>Jump Performance</h3><table class="report-table"><tr><td>Flight Time</td><td class="val">${jump.flightTime ? jump.flightTime.toFixed(2) : 0} s</td></tr><tr><td>Jump Height (Flight-Time)</td><td class="val">${jump.jumpHeightFlight.toFixed(2)} m</td></tr><tr><td>Jump Height (Hip Rise)</td><td class="val">${jump.jumpHeightHip.toFixed(2)} m</td></tr><tr><td>Countermovement Depth</td><td class="val">${jump.countermovementDepth.toFixed(2)} m</td></tr></table></div><div><h3>Jump Events</h3><table class="report-table"><tr><td>Take-Off</td><td class="val">${takeoffText}</td></tr><tr><td>Landing</td><td class="val">${landingText}</td></tr><tr><td>Landing Knee Flexion</td><td class="val">${jump.landingKnee !== null ? jump.landingKnee.toFixed(1) : "—"}°</td></tr><tr><td>Landing Asymmetry</td><td class="val">${jump.landingAsym !== null ? jump.landingAsym.toFixed(1) : "—"}°</td></tr></table></div></div>`;
+      h += `<div class="insight-container"><h3 style="color:var(--accent); margin-bottom:12px;">Jump Interpretation</h3><div class="insight-box"><div class="chip-row"><span class="chip chip-warn">${confidence}</span><span class="chip chip-good">Countermovement Jump</span></div><p><strong>Summary:</strong> Jump mode reports vertical performance and landing-control heuristics from a single side-view trial.</p><div class="section-title" style="margin-top:14px;">Key Findings</div>${buildList(findings, item => `<li>${escapeHtml(item)}</li>`)}<div class="section-title" style="margin-top:16px;">Suggested Focus Areas</div>${buildList(advice, item => `<li>${escapeHtml(item)}</li>`)}<div class="section-title" style="margin-top:16px;">Sanity Checks</div>${buildList(sanity, item => `<li>${escapeHtml(item)}</li>`)}<p class="source-note">Jump height from flight time uses the standard ballistic equation h = g·t²/8. This mode is intended for side-view field screening, not force-platform equivalence.</p></div></div>`;
+      els.reportTitle.textContent = "Jump Test Report";
       els.reportContent.innerHTML = h;
       els.modalReport.style.display = 'flex';
     }
 
+    function analyzeTug(fr, scale) {
+      const times = fr.map(f => f.t);
+      const hipH = smoothSeries(fr.map(f => -((f.lm[23].y + f.lm[24].y) / 2) * scale), 2);
+      const noseH = smoothSeries(fr.map(f => -(f.lm[0].y) * scale), 2);
+      const hipX = smoothSeries(fr.map(f => ((f.lm[23].x + f.lm[24].x) / 2) * scale), 2);
+      const baseCount = Math.min(20, Math.max(10, Math.floor(fr.length * 0.2)));
+      const seatedHip = medianValue(hipH.slice(0, baseCount)) || hipH[0];
+      const seatedNose = medianValue(noseH.slice(0, baseCount)) || noseH[0];
+      const startX = medianValue(hipX.slice(0, baseCount)) || hipX[0];
+      const standStart = hipH.findIndex((v, i) => i >= baseCount && (v - seatedHip > 0.08 || noseH[i] - seatedNose > 0.10));
+      const displacement = hipX.map(x => x - startX);
+      const turnIdx = standStart >= 0 ? displacement.reduce((best, value, idx) => idx < standStart ? best : (Math.abs(value) > Math.abs(displacement[best]) ? idx : best), standStart) : -1;
+      const direction = turnIdx >= 0 && displacement[turnIdx] < 0 ? -1 : 1;
+      const peakHip = standStart >= 0 && turnIdx > standStart ? Math.max(...hipH.slice(standStart, turnIdx + 1)) : Math.max(...hipH);
+      const standComplete = standStart >= 0 ? hipH.findIndex((v, i) => i >= standStart && v >= seatedHip + 0.7 * (peakHip - seatedHip)) : -1;
+      const vel = hipX.map((x, i) => i === 0 ? 0 : (x - hipX[i - 1]) / Math.max(0.001, times[i] - times[i - 1]));
+      let turnStart = -1, turnEnd = -1;
+      if (turnIdx >= 0) {
+        for (let i = turnIdx; i >= Math.max(1, standComplete); i--) { if (direction * vel[i] > 0.05) { turnStart = i; break; } }
+        for (let i = turnIdx; i < vel.length; i++) { if (direction * vel[i] < -0.05) { turnEnd = i; break; } }
+      }
+      const returnNearStart = turnEnd >= 0 ? hipX.findIndex((x, i) => i > turnEnd && Math.abs(x - startX) < 0.15) : -1;
+      const sitStart = returnNearStart >= 0 ? hipH.findIndex((v, i) => i > returnNearStart && v < seatedHip + 0.5 * (peakHip - seatedHip)) : -1;
+      const endIdx = sitStart >= 0 ? hipH.findIndex((v, i) => i > sitStart && Math.abs(v - seatedHip) < 0.04 && Math.abs(noseH[i] - seatedNose) < 0.05) : -1;
+      const totalTime = standStart >= 0 && endIdx > standStart ? times[endIdx] - times[standStart] : 0;
+      const standTime = standStart >= 0 && standComplete > standStart ? times[standComplete] - times[standStart] : 0;
+      const turnTime = turnStart >= 0 && turnEnd > turnStart ? times[turnEnd] - times[turnStart] : 0;
+      const walkOutTime = standComplete >= 0 && turnStart > standComplete ? times[turnStart] - times[standComplete] : 0;
+      const returnTime = turnEnd >= 0 && sitStart > turnEnd ? times[sitStart] - times[turnEnd] : 0;
+      const sitTime = sitStart >= 0 && endIdx > sitStart ? times[endIdx] - times[sitStart] : 0;
+      const oneWayDistance = turnIdx >= 0 ? Math.abs(displacement[turnIdx]) : 0;
+
+      const findings = [];
+      const advice = [];
+      const sanity = [];
+      if (!totalTime) {
+        findings.push("A full Timed Up and Go sequence was not cleanly detected. Start seated and still, then finish clearly seated again.");
+      } else {
+        if (totalTime > 13.5) findings.push(`Total TUG time was ${totalTime.toFixed(2)} s, above the commonly cited 13.5 s elevated fall-risk threshold for community-dwelling older adults.`);
+        else if (totalTime > 10) findings.push(`Total TUG time was ${totalTime.toFixed(2)} s, slower than typical independent functional mobility values often seen below ~10 s.`);
+        if (turnTime > 0 && totalTime > 0 && turnTime / totalTime > 0.30) findings.push(`Turning consumed ${Math.round((turnTime / totalTime) * 100)}% of total time, suggesting cautious or inefficient turning.`);
+        if (standTime > 0 && totalTime > 0 && standTime / totalTime > 0.35) findings.push(`Sit-to-stand consumed ${Math.round((standTime / totalTime) * 100)}% of total time, which may indicate a slower transfer phase.`);
+      }
+      if (oneWayDistance < 2.0) sanity.push(`Estimated one-way travel distance was ${oneWayDistance.toFixed(2)} m, so the full 3 m TUG path may not have been fully visible or calibrated.`);
+      if (turnIdx < 0 || sitStart < 0 || endIdx < 0) sanity.push("One or more TUG phase boundaries were estimated heuristically from trunk and pelvis motion and may need a cleaner seated start/end.");
+      advice.push("For cleaner TUG detection, begin seated and still for about 2 seconds, complete the full stand-walk-turn-return-sit sequence, and keep the chair plus turning point inside the side-view frame.");
+      if (turnTime > 0 && totalTime > 0 && turnTime / totalTime > 0.30) advice.push("If turning remains slow across repeated trials, review turning confidence, step count during turn, and available space around the turning marker.");
+      if (standTime > 0 && totalTime > 0 && standTime / totalTime > 0.35) advice.push("If transfer time remains proportionally high, compare repeated trials and check whether chair height or initial foot placement changes performance.");
+
+      return { totalTime, standTime, walkOutTime, turnTime, returnTime, sitTime, oneWayDistance, findings, advice, sanity };
+    }
+
+    function renderTugReport(fr, scale) {
+      const tug = analyzeTug(fr, scale);
+      const confidence = tug.totalTime ? "Moderate confidence" : "Low confidence";
+      const findings = tug.findings.length ? tug.findings : ["No major TUG red flags were triggered by the current rule set."];
+      const sanity = tug.sanity.length ? tug.sanity : ["TUG phases were detected from single-camera motion heuristics. Repeat the trial under the same setup for tracking use."];
+      let h = `<div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;"><div><h3>TUG Timing</h3><table class="report-table"><tr><td>Total Time</td><td class="val">${tug.totalTime ? tug.totalTime.toFixed(2) : 0} s</td></tr><tr><td>Sit-to-Stand</td><td class="val">${tug.standTime ? tug.standTime.toFixed(2) : 0} s</td></tr><tr><td>Outbound Walk</td><td class="val">${tug.walkOutTime ? tug.walkOutTime.toFixed(2) : 0} s</td></tr><tr><td>Turn</td><td class="val">${tug.turnTime ? tug.turnTime.toFixed(2) : 0} s</td></tr></table></div><div><h3>Return Phase</h3><table class="report-table"><tr><td>Return Walk</td><td class="val">${tug.returnTime ? tug.returnTime.toFixed(2) : 0} s</td></tr><tr><td>Stand-to-Sit</td><td class="val">${tug.sitTime ? tug.sitTime.toFixed(2) : 0} s</td></tr><tr><td>Estimated One-Way Distance</td><td class="val">${tug.oneWayDistance.toFixed(2)} m</td></tr><tr><td>Protocol</td><td class="val" style="font-size:0.72rem;">Seated start / walk-turn-return-sit</td></tr></table></div></div>`;
+      h += `<div class="insight-container"><h3 style="color:var(--accent); margin-bottom:12px;">Timed Up and Go Interpretation</h3><div class="insight-box"><div class="chip-row"><span class="chip chip-warn">${confidence}</span><span class="chip chip-good">TUG</span></div><p><strong>Summary:</strong> TUG mode estimates total time plus heuristic transfer, walking, turning, and return phases from a side-view video.</p><div class="section-title" style="margin-top:14px;">Key Findings</div>${buildList(findings, item => `<li>${escapeHtml(item)}</li>`)}<div class="section-title" style="margin-top:16px;">Suggested Focus Areas</div>${buildList(tug.advice, item => `<li>${escapeHtml(item)}</li>`)}<div class="section-title" style="margin-top:16px;">Sanity Checks</div>${buildList(sanity, item => `<li>${escapeHtml(item)}</li>`)}<p class="source-note">TUG interpretation uses the commonly cited 13.5 s threshold from fall-risk literature for community-dwelling older adults. Single-camera phase timing remains heuristic.</p></div></div>`;
+      els.reportTitle.textContent = "Timed Up and Go Report";
+      els.reportContent.innerHTML = h;
+      els.modalReport.style.display = 'flex';
+    }
+
+    function performGaitAnalysis() {
+      const fr = state.frames, s = state.scale;
+      const gait = detectGaitEvents(fr, s);
+      const steps = gait.steps; const dur = fr[fr.length-1].t - fr[0].t; const cad = steps > 0 ? (steps / (dur/60)) : 0; const avgStepLength = gait.avgStepLength || 0; const stride = avgStepLength * 2; const spd = steps > 0 ? (avgStepLength * steps) / dur : 0;
+      const ev = gait.events;
+      const avg = (arr, k) => !arr.length ? "-" : (arr.reduce((a,x)=>a+fr[x].ang[k],0)/arr.length).toFixed(1);
+      const metrics = {
+        speed: spd || 0,
+        cadence: cad || 0,
+        stride: stride || 0,
+        stepLength: avgStepLength || 0,
+        duration: dur || 0,
+        steps,
+        scale: s,
+        validation: state.lastValidation || { stabilityStd: null, boneCv: null, floorStd: null },
+        kinematics: {
+          r: {
+            hip: { ic: avgNumeric(ev.r_ic, 'rH', fr), mst: avgNumeric(ev.r_mst, 'rH', fr), po: avgNumeric(ev.r_po, 'rH', fr), sw: avgNumeric(ev.r_sw, 'rH', fr) },
+            knee: { ic: avgNumeric(ev.r_ic, 'rK', fr), mst: avgNumeric(ev.r_mst, 'rK', fr), po: avgNumeric(ev.r_po, 'rK', fr), sw: avgNumeric(ev.r_sw, 'rK', fr) },
+            ankle: { ic: avgNumeric(ev.r_ic, 'rA', fr), mst: avgNumeric(ev.r_mst, 'rA', fr), po: avgNumeric(ev.r_po, 'rA', fr), sw: avgNumeric(ev.r_sw, 'rA', fr) },
+          },
+          l: {
+            hip: { ic: avgNumeric(ev.l_ic, 'lH', fr), mst: avgNumeric(ev.l_mst, 'lH', fr), po: avgNumeric(ev.l_po, 'lH', fr), sw: avgNumeric(ev.l_sw, 'lH', fr) },
+            knee: { ic: avgNumeric(ev.l_ic, 'lK', fr), mst: avgNumeric(ev.l_mst, 'lK', fr), po: avgNumeric(ev.l_po, 'lK', fr), sw: avgNumeric(ev.l_sw, 'lK', fr) },
+            ankle: { ic: avgNumeric(ev.l_ic, 'lA', fr), mst: avgNumeric(ev.l_mst, 'lA', fr), po: avgNumeric(ev.l_po, 'lA', fr), sw: avgNumeric(ev.l_sw, 'lA', fr) },
+          },
+        },
+      };
+
+      let h = `<div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;"><div><h3>Spatio-Temporal</h3><table class="report-table"><tr><td>Speed</td><td class="val">${spd?spd.toFixed(2):0} m/s</td></tr><tr><td>Cadence</td><td class="val">${cad.toFixed(0)} spm</td></tr><tr><td>Step Length</td><td class="val">${avgStepLength.toFixed(2)} m</td></tr><tr><td>Stride</td><td class="val">${stride.toFixed(2)} m</td></tr></table></div><div><h3>Cycle</h3><table class="report-table"><tr><td>Steps</td><td class="val">${steps}</td></tr><tr><td>Duration</td><td class="val">${dur.toFixed(1)} s</td></tr><tr><td>Protocol</td><td class="val" style="font-size:0.72rem;">Side view / static calibration</td></tr></table></div></div><h3 style="margin-top:20px;">Kinematics (Avg Degrees)</h3><table class="report-table"><thead><tr><th>Joint</th><th>IC</th><th>MSt</th><th>PO</th><th>Sw</th></tr></thead><tbody>`;
+      const rows = [ ['Right Hip', 'rH', 'r'], ['Left Hip', 'lH', 'l'], ['Right Knee', 'rK', 'r'], ['Left Knee', 'lK', 'l'], ['Right Ankle (Dorsiflexion + / Plantarflexion -)', 'rA', 'r'], ['Left Ankle (Dorsiflexion + / Plantarflexion -)', 'lA', 'l'] ];
+      rows.forEach(([name, key, side]) => { h += `<tr><td><strong>${name}</strong></td><td>${avg(ev[side+'_ic'], key)}</td><td>${avg(ev[side+'_mst'], key)}</td><td>${avg(ev[side+'_po'], key)}</td><td>${avg(ev[side+'_sw'], key)}</td></tr>`; });
+      h += `</tbody></table>${renderInterpretation(metrics)}`;
+      els.reportTitle.textContent = "Gait Analysis Report";
+      els.reportContent.innerHTML = h;
+      els.modalReport.style.display = 'flex';
+    }
+
+    function performAnalysis() {
+      const fr = state.frames;
+      if (fr.length < 30) { alert("Recording too short"); return; }
+      if (state.mode === 'jump') return renderJumpReport(fr, state.scale);
+      if (state.mode === 'tug') return renderTugReport(fr, state.scale);
+      return performGaitAnalysis();
+    }
+
     window.downloadCSV = function() {
       if(!state.frames.length) return;
-      let c = "Time,Sep_m,RHip_Ang,LHip_Ang,RKnee_Ang,LKnee_Ang,RAnk_Ang,LAnk_Ang,RHip_X,RHip_Y,RHip_Z,LHip_X,LHip_Y,LHip_Z,RKnee_X,RKnee_Y,RKnee_Z,LKnee_X,LKnee_Y,LKnee_Z,RAnk_X,RAnk_Y,RAnk_Z,LAnk_X,LAnk_Y,LAnk_Z,RHeel_X,RHeel_Y,RHeel_Z,LHeel_X,LHeel_Y,LHeel_Z\n";
+      let c = "Mode,Time,Sep_m,RHip_Ang,LHip_Ang,RKnee_Ang,LKnee_Ang,RAnk_Ang,LAnk_Ang,RHip_X,RHip_Y,RHip_Z,LHip_X,LHip_Y,LHip_Z,RKnee_X,RKnee_Y,RKnee_Z,LKnee_X,LKnee_Y,LKnee_Z,RAnk_X,RAnk_Y,RAnk_Z,LAnk_X,LAnk_Y,LAnk_Z,RHeel_X,RHeel_Y,RHeel_Z,LHeel_X,LHeel_Y,LHeel_Z\n";
       const s = state.scale, f = (v)=> (v*s).toFixed(3), fy = (v)=> (-v*s).toFixed(3), fz = (v)=> (-v*s).toFixed(3);
       state.frames.forEach(fr => {
         const lm = fr.lm, sep = Math.abs(lm[27].x-lm[28].x)*s;
-        c += `${fr.t.toFixed(3)},${sep.toFixed(3)},${fr.ang.rH.toFixed(1)},${fr.ang.lH.toFixed(1)},${fr.ang.rK.toFixed(1)},${fr.ang.lK.toFixed(1)},${fr.ang.rA.toFixed(1)},${fr.ang.lA.toFixed(1)},`;
+        c += `${state.mode},${fr.t.toFixed(3)},${sep.toFixed(3)},${fr.ang.rH.toFixed(1)},${fr.ang.lH.toFixed(1)},${fr.ang.rK.toFixed(1)},${fr.ang.lK.toFixed(1)},${fr.ang.rA.toFixed(1)},${fr.ang.lA.toFixed(1)},`;
         [24,23,26,25,28,27,30,29].forEach(i => c += `${f(lm[i].x)},${fy(lm[i].y)},${fz(lm[i].z)},`);
         c = c.slice(0,-1) + "\n";
       });
       const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([c], {type:'text/csv'}));
-      a.download = `biogait_full_3d_${Date.now()}.csv`; a.click();
+      a.download = `biogait_${state.mode}_${Date.now()}.csv`; a.click();
     }
 
+    setMode('gait');
     init();
   </script>
 </body>
